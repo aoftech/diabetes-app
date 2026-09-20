@@ -24,538 +24,485 @@ const settingTargetInput = document.getElementById('setting-target');
 const settingIsfInput = document.getElementById('setting-isf');
 const settingIcrInput = document.getElementById('setting-icr');
 
-const liveGlucoseVal = document.getElementById('live-glucose-val');
-const liveStatusPill = document.getElementById('live-status-pill');
+const displayGlucose = document.getElementById('display-glucose');
+const gaugeFill = document.getElementById('gauge-fill');
 const gaugeNeedle = document.getElementById('gauge-needle');
-const tirPercentIn = document.getElementById('tir-percent-in');
-const tirBarLow = document.getElementById('tir-bar-low');
-const tirBarNormal = document.getElementById('tir-bar-normal');
-const tirBarHigh = document.getElementById('tir-bar-high');
-const tirValLow = document.getElementById('tir-val-low');
-const tirValNorm = document.getElementById('tir-val-norm');
-const tirValHigh = document.getElementById('tir-val-high');
+const gaugeStatus = document.getElementById('gauge-status');
+const tirLow = document.getElementById('tir-low');
+const tirTarget = document.getElementById('tir-target');
+const tirHigh = document.getElementById('tir-high');
+const tirPercent = document.getElementById('tir-percent');
 
-const timelineStream = document.getElementById('log-timeline');
-const exportBtn = document.getElementById('export-csv-btn');
-const timeframeSelect = document.getElementById('timeframe-mode');
-
-let chartInstance = null;
+const logList = document.getElementById('log-list');
+const logCounter = document.getElementById('log-counter');
+const exportCsvBtn = document.getElementById('export-csv-btn');
 
 // ==========================================
-// 2. จัดการข้อมูลแผนคำสั่งแพทย์
+// 2. ข้อมูลตั้งต้น (STATE)
 // ==========================================
-function loadUserSettings() {
-  const defaults = { morningDose: 0, eveningDose: 0, target: 110, isf: 0, icr: 0 };
-  const settings = JSON.parse(localStorage.getItem('diabetes_settings') || JSON.stringify(defaults));
-  
-  if (settingMorningDoseInput) settingMorningDoseInput.value = settings.morningDose || '';
-  if (settingEveningDoseInput) settingEveningDoseInput.value = settings.eveningDose || '';
-  if (settingTargetInput) settingTargetInput.value = settings.target || '';
-  if (settingIsfInput) settingIsfInput.value = settings.isf || '';
-  if (settingIcrInput) settingIcrInput.value = settings.icr || '';
+let rxConfig = {
+  morningDose: 14,
+  eveningDose: 8,
+  targetGlucose: 110,
+  isf: 40,
+  icr: 15
+};
 
-  return settings;
+let records = [];
+
+function loadSettings() {
+  const savedRx = localStorage.getItem('metabolic_rx_config');
+  if (savedRx) {
+    try { rxConfig = JSON.parse(savedRx); } catch (e) { console.error(e); }
+  }
+  settingMorningDoseInput.value = rxConfig.morningDose ?? '';
+  settingEveningDoseInput.value = rxConfig.eveningDose ?? '';
+  settingTargetInput.value = rxConfig.targetGlucose ?? 110;
+  settingIsfInput.value = rxConfig.isf ?? 40;
+  settingIcrInput.value = rxConfig.icr ?? 15;
 }
 
-if (toggleSettingsBtn) toggleSettingsBtn.addEventListener('click', () => settingsPanel.style.display = 'block');
-if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', () => settingsPanel.style.display = 'none');
+function saveSettings() {
+  rxConfig.morningDose = parseFloat(settingMorningDoseInput.value) || 0;
+  rxConfig.eveningDose = parseFloat(settingEveningDoseInput.value) || 0;
+  rxConfig.targetGlucose = parseFloat(settingTargetInput.value) || 110;
+  rxConfig.isf = parseFloat(settingIsfInput.value) || 40;
+  rxConfig.icr = parseFloat(settingIcrInput.value) || 15;
 
-if (saveSettingsBtn) {
-  saveSettingsBtn.addEventListener('click', () => {
-    const morningDose = parseFloat(settingMorningDoseInput.value) || 0;
-    const eveningDose = parseFloat(settingEveningDoseInput.value) || 0;
-    const target = parseFloat(settingTargetInput.value) || 110;
-    const isf = parseFloat(settingIsfInput.value) || 0;
-    const icr = parseFloat(settingIcrInput.value) || 0;
+  localStorage.setItem('metabolic_rx_config', JSON.stringify(rxConfig));
+  settingsPanel.classList.add('hidden');
+  updateRxHintForMeal(mealTimeHidden.value);
+  calculateExpectedDose();
+}
 
-    localStorage.setItem('diabetes_settings', JSON.stringify({
-      morningDose, eveningDose, target, isf, icr
-    }));
+function loadRecords() {
+  const saved = localStorage.getItem('metabolic_logs_v2');
+  if (saved) {
+    try { records = JSON.parse(saved); } catch (e) { records = []; }
+  } else {
+    // ข้อมูลเริ่มต้นจำลอง
+    records = [
+      {
+        id: Date.now() - 3600000 * 8,
+        timestamp: new Date(Date.now() - 3600000 * 8).toISOString(),
+        glucose: 118,
+        mealTime: 'morning',
+        actualInsulin: 14,
+        prescribedInsulin: 14,
+        carbs: 35,
+        symptom: 'สดชื่น',
+        foodNote: 'ข้าวต้มปลา'
+      }
+    ];
+    saveRecords();
+  }
+}
 
-    settingsPanel.style.display = 'none';
-    alert('บันทึกแผนคำสั่งแพทย์เรียบร้อย');
-    syncDoctorPrescription(mealTimeHidden.value);
-    updateLiveHint();
+function saveRecords() {
+  localStorage.setItem('metabolic_logs_v2', JSON.stringify(records));
+  renderAll();
+}
+
+// ==========================================
+// 3. UI PILLS & RX AUTO-FILL
+// ==========================================
+function setupPills() {
+  const mealPills = document.querySelectorAll('#meal-pills .pill-btn');
+  mealPills.forEach(btn => {
+    btn.addEventListener('click', () => {
+      mealPills.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const val = btn.getAttribute('data-val');
+      mealTimeHidden.value = val;
+      updateRxHintForMeal(val);
+      calculateExpectedDose();
+    });
+  });
+
+  const symptomPills = document.querySelectorAll('#symptom-pills .pill-btn');
+  symptomPills.forEach(btn => {
+    btn.addEventListener('click', () => {
+      symptomPills.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      symptomValHidden.value = btn.getAttribute('data-val');
+    });
   });
 }
 
-// ==========================================
-// 3. AUTO-FILL ขนาดยาตามหมอสั่ง (เช้า-เย็น)
-// ==========================================
-function syncDoctorPrescription(meal) {
-  const settings = loadUserSettings();
+function updateRxHintForMeal(mealVal) {
   let rxDose = 0;
+  if (mealVal === 'morning') rxDose = rxConfig.morningDose;
+  else if (mealVal === 'evening') rxDose = rxConfig.eveningDose;
 
-  if (meal.includes('ก่อนอาหารเช้า') || meal.includes('ก่อนมื้อเช้า')) {
-    rxDose = settings.morningDose;
-  } else if (meal.includes('ก่อนอาหารเย็น') || meal.includes('ก่อนมื้อเย็น')) {
-    rxDose = settings.eveningDose;
-  }
-
-  if (rxHintLabel) {
-    if (rxDose > 0) {
-      rxHintLabel.innerHTML = `💉 ฉีดจริง (<span style="color:#10b981; font-weight:bold;">หมอสั่ง: ${rxDose} U</span>)`;
+  if (rxDose > 0) {
+    rxHintLabel.textContent = `หมอสั่ง ${rxDose} U`;
+    rxHintLabel.style.display = 'inline-block';
+    if (editIndexInput.value === '-1') {
       insulinInput.value = rxDose;
-    } else {
-      rxHintLabel.textContent = '💉 ฉีดจริง (ยูนิต)';
-      if (meal.includes('หลังอาหาร') || meal.includes('ก่อนนอน')) {
-        insulinInput.value = '';
-      }
+    }
+  } else {
+    rxHintLabel.textContent = `ไม่มีคำสั่งฉีด`;
+    rxHintLabel.style.display = 'inline-block';
+    if (editIndexInput.value === '-1') {
+      insulinInput.value = '';
     }
   }
 }
 
-// ==========================================
-// 4. QUICK-TAP PILLS
-// ==========================================
-function setupPillSelector(containerId, hiddenInput) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-
-  const buttons = container.querySelectorAll('.pill-btn');
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      buttons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      hiddenInput.value = btn.dataset.val;
-
-      if (containerId === 'meal-pills') {
-        syncDoctorPrescription(btn.dataset.val);
-        updateLiveHint();
-      }
-    });
-  });
-}
-setupPillSelector('meal-pills', mealTimeHidden);
-setupPillSelector('symptom-pills', symptomValHidden);
-
-// ==========================================
-// 5. คาดการณ์สุทธิ (ISF / ICR)
-// ==========================================
-function calculateExpectedGlucose(glucoseVal, insulinVal, carbsVal, settings) {
-  const bg = parseFloat(glucoseVal);
-  if (isNaN(bg)) return null;
-
-  const ins = parseFloat(insulinVal) || 0;
-  const carbs = parseFloat(carbsVal) || 0;
-  const isf = parseFloat(settings.isf) || 0;
-  const icr = parseFloat(settings.icr) || 0;
-
-  if (isf <= 0) return null;
-
-  const drop = ins * isf;
-  const rise = (icr > 0 && carbs > 0) ? (carbs / icr) * isf : 0;
-  return Math.max(Math.round(bg - drop + rise), 40);
-}
-
-function updateLiveHint() {
-  const settings = loadUserSettings();
-  const val = glucoseInput.value;
-  const ins = insulinInput.value;
-  const carbs = carbsInput.value;
-
-  const expected = calculateExpectedGlucose(val, ins, carbs, settings);
-  if (expected !== null && (parseFloat(ins) > 0 || parseFloat(carbs) > 0)) {
-    expectedHint.style.display = 'block';
-    let text = `⚡ <strong>ผลลัพธ์คาดการณ์:</strong> ~${expected} mg/dL `;
-    if (parseFloat(ins) > 0) text += `<small style="color:#16a34a;">(ยา -${Math.round(parseFloat(ins) * settings.isf)})</small> `;
-    if (parseFloat(carbs) > 0 && settings.icr > 0) text += `<small style="color:#d97706;">(คาร์บ +${Math.round((parseFloat(carbs) / settings.icr) * settings.isf)})</small>`;
-    expectedHint.innerHTML = text;
-  } else {
-    expectedHint.style.display = 'none';
-  }
-}
-
-glucoseInput.addEventListener('input', updateLiveHint);
-insulinInput.addEventListener('input', updateLiveHint);
-carbsInput.addEventListener('input', updateLiveHint);
-
-// ==========================================
-// 6. เกจหน้าปัด & TIME-IN-RANGE
-// ==========================================
-function updateGauge(value) {
-  if (!liveGlucoseVal || !gaugeNeedle) return;
-
-  if (!value || isNaN(value)) {
-    liveGlucoseVal.textContent = '--';
-    liveStatusPill.textContent = 'รอการบันทึก';
-    liveStatusPill.style.background = '#f1f5f9';
-    liveStatusPill.style.color = '#64748b';
-    gaugeNeedle.style.transform = 'rotate(0deg)';
+function calculateExpectedDose() {
+  const g = parseFloat(glucoseInput.value);
+  const c = parseFloat(carbsInput.value) || 0;
+  
+  if (isNaN(g)) {
+    expectedHint.textContent = 'คาดการณ์: -';
     return;
   }
 
-  liveGlucoseVal.textContent = Math.round(value);
+  const target = rxConfig.targetGlucose || 110;
+  const isf = rxConfig.isf || 40;
+  const icr = rxConfig.icr || 15;
 
-  const minVal = 40;
-  const maxVal = 240;
-  const clamped = Math.min(Math.max(value, minVal), maxVal);
-  const angle = ((clamped - minVal) / (maxVal - minVal)) * 180;
+  let correction = 0;
+  if (g > target && isf > 0) {
+    correction = (g - target) / isf;
+  }
+  
+  let carbDose = 0;
+  if (c > 0 && icr > 0) {
+    carbDose = c / icr;
+  }
+
+  const totalExpected = Math.max(0, correction + carbDose).toFixed(1);
+  expectedHint.textContent = `สูตรแพทย์คาดการณ์: ~${totalExpected} U (แก้น้ำตาล +${correction.toFixed(1)} / คาร์บ +${carbDose.toFixed(1)})`;
+}
+
+// ==========================================
+// 4. เกจและ TIME IN RANGE
+// ==========================================
+function updateGauge(glucose) {
+  if (!glucose || isNaN(glucose)) {
+    displayGlucose.textContent = '--';
+    gaugeStatus.textContent = 'พร้อมรับข้อมูล';
+    gaugeStatus.className = 'gauge-status-badge status-normal';
+    setGaugeRotation(0);
+    return;
+  }
+
+  displayGlucose.textContent = Math.round(glucose);
+
+  const minG = 40;
+  const maxG = 300;
+  const clamped = Math.min(Math.max(glucose, minG), maxG);
+  const percent = (clamped - minG) / (maxG - minG);
+  const angle = -90 + (percent * 180);
+
+  setGaugeRotation(angle);
+
+  if (glucose < 70) {
+    gaugeStatus.textContent = '⚠️ น้ำตาลต่ำกว่าเกณฑ์ (ระวังวูบ)';
+    gaugeStatus.className = 'gauge-status-badge status-low';
+    gaugeFill.style.stroke = 'var(--status-low)';
+  } else if (glucose <= 140) {
+    gaugeStatus.textContent = '✅ อยู่ในเกณฑ์ปกติที่ดีเยี่ยม';
+    gaugeStatus.className = 'gauge-status-badge status-normal';
+    gaugeFill.style.stroke = 'var(--status-target)';
+  } else if (glucose <= 180) {
+    gaugeStatus.textContent = '⚡ เริ่มสูงกว่าเป้าหมาย';
+    gaugeStatus.className = 'gauge-status-badge status-warning';
+    gaugeFill.style.stroke = 'var(--status-warning)';
+  } else {
+    gaugeStatus.textContent = '🚨 น้ำตาลสูงเกินเกณฑ์มาตรฐาน';
+    gaugeStatus.className = 'gauge-status-badge status-danger';
+    gaugeFill.style.stroke = 'var(--status-danger)';
+  }
+}
+
+function setGaugeRotation(angle) {
   gaugeNeedle.style.transform = `rotate(${angle}deg)`;
-
-  if (value < 70) {
-    liveStatusPill.textContent = 'น้ำตาลต่ำ ⚠️';
-    liveStatusPill.style.background = '#e0f2fe';
-    liveStatusPill.style.color = '#0284c7';
-  } else if (value <= 140) {
-    liveStatusPill.textContent = 'อยู่ในเกณฑ์ดีเยี่ยม 🟢';
-    liveStatusPill.style.background = '#dcfce7';
-    liveStatusPill.style.color = '#15803d';
-  } else if (value <= 180) {
-    liveStatusPill.textContent = 'ค่อนข้างสูง 🟠';
-    liveStatusPill.style.background = '#fef3c7';
-    liveStatusPill.style.color = '#b45309';
-  } else {
-    liveStatusPill.textContent = 'สูงเกินเกณฑ์ 🔴';
-    liveStatusPill.style.background = '#ffe4e6';
-    liveStatusPill.style.color = '#e11d48';
-  }
+  const totalArc = 251.2;
+  const progressPercent = (angle + 90) / 180;
+  const offset = totalArc - (totalArc * progressPercent);
+  gaugeFill.style.strokeDashoffset = offset;
 }
 
-function updateTIR(logs) {
-  if (!tirPercentIn) return;
-
-  if (!logs || logs.length === 0) {
-    tirPercentIn.textContent = '0%';
-    tirBarLow.style.width = '0%';
-    tirBarNormal.style.width = '0%';
-    tirBarHigh.style.width = '0%';
-    tirValLow.textContent = '0%';
-    tirValNorm.textContent = '0%';
-    tirValHigh.textContent = '0%';
+function updateTIR() {
+  if (records.length === 0) {
+    tirLow.style.width = '0%';
+    tirTarget.style.width = '0%';
+    tirHigh.style.width = '0%';
+    tirPercent.textContent = '0% ในเกณฑ์';
     return;
   }
 
-  let low = 0, norm = 0, high = 0;
-  logs.forEach(i => {
-    const v = parseFloat(i.value);
-    if (v < 70) low++;
-    else if (v <= 140) norm++;
-    else high++;
+  let lowCount = 0;
+  let targetCount = 0;
+  let highCount = 0;
+
+  records.forEach(r => {
+    if (r.glucose < 70) lowCount++;
+    else if (r.glucose <= 140) targetCount++;
+    else highCount++;
   });
 
-  const total = logs.length;
-  const lowP = Math.round((low / total) * 100);
-  const normP = Math.round((norm / total) * 100);
-  const highP = 100 - lowP - normP;
+  const total = records.length;
+  const lowP = ((lowCount / total) * 100).toFixed(0);
+  const targetP = ((targetCount / total) * 100).toFixed(0);
+  const highP = ((highCount / total) * 100).toFixed(0);
 
-  tirPercentIn.textContent = `${normP}%`;
-  tirBarLow.style.width = `${lowP}%`;
-  tirBarNormal.style.width = `${normP}%`;
-  tirBarHigh.style.width = `${highP}%`;
-
-  tirValLow.textContent = `${lowP}%`;
-  tirValNorm.textContent = `${normP}%`;
-  tirValHigh.textContent = `${highP}%`;
+  tirLow.style.width = `${lowP}%`;
+  tirTarget.style.width = `${targetP}%`;
+  tirHigh.style.width = `${highP}%`;
+  tirPercent.textContent = `${targetP}% ในเกณฑ์ (70-140)`;
 }
 
 // ==========================================
-// 7. เรนเดอร์ไทม์ไลน์ชีวิต (METABOLIC JOURNEY)
+// 5. ไทม์ไลน์และบันทึกข้อมูล
 // ==========================================
-function loadTimeline() {
-  const logs = JSON.parse(localStorage.getItem('glucose_logs') || '[]');
+function renderTimeline() {
+  logList.innerHTML = '';
+  logCounter.textContent = `${records.length} รายการ`;
 
-  if (logs.length === 0) {
-    timelineStream.innerHTML = '<p style="font-size: 0.85rem; color: #94a3b8; text-align: center; padding: 20px 0;">ยังไม่มีข้อมูลจังหวะชีวิต</p>';
-    updateGauge(null);
-    updateTIR([]);
+  if (records.length === 0) {
+    logList.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-muted); font-size: 0.85rem;">ยังไม่มีบันทึกข้อมูล</div>`;
     return;
   }
 
-  updateGauge(parseFloat(logs[0].value));
-  updateTIR(logs);
+  records.forEach((rec, idx) => {
+    const card = document.createElement('div');
+    card.className = 'timeline-card';
 
-  timelineStream.innerHTML = logs.map((item, index) => {
-    const val = parseFloat(item.value);
-    let dotColor = '#10b981';
-    let tagColor = '#15803d';
+    let circleColor = 'var(--status-target)';
+    if (rec.glucose < 70) circleColor = 'var(--status-low)';
+    else if (rec.glucose > 140) circleColor = 'var(--status-danger)';
 
-    if (val < 70) { dotColor = '#38bdf8'; tagColor = '#0284c7'; }
-    else if (val > 140) { dotColor = '#f43f5e'; tagColor = '#e11d48'; }
+    const d = new Date(rec.timestamp);
+    const timeStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-    return `
-      <div class="timeline-node">
-        <div class="timeline-dot" style="background: ${dotColor};"></div>
-        <div class="timeline-content-box">
-          <div class="node-header">
-            <span class="node-time">🕒 ${item.date}</span>
-            <span class="node-val-tag" style="color: ${tagColor};">${item.value} <small style="font-size: 0.7rem;">mg/dL</small></span>
-          </div>
+    let mealLabel = 'มื้อทั่วไป';
+    if (rec.mealTime === 'morning') mealLabel = '🌅 ก่อนมื้อเช้า';
+    else if (rec.mealTime === 'evening') mealLabel = '🌇 ก่อนมื้อเย็น';
+    else if (rec.mealTime === 'post-meal') mealLabel = '⏱️ หลังอาหาร 2h';
+    else if (rec.mealTime === 'bedtime') mealLabel = '🌙 ก่อนนอน';
 
-          <div class="node-details">
-            <strong>${item.meal}</strong> ${item.foodNote ? `• ${item.foodNote}` : ''}
-          </div>
+    let rxDiffChip = '';
+    if (rec.prescribedInsulin > 0) {
+      const diff = (rec.actualInsulin || 0) - rec.prescribedInsulin;
+      if (diff === 0) {
+        rxDiffChip = `<span class="chip chip-rx">🟢 ตรงตามสั่ง (${rec.prescribedInsulin}U)</span>`;
+      } else if (diff > 0) {
+        rxDiffChip = `<span class="chip chip-diff-high">🟠 ฉีดเกินสั่ง +${diff}U</span>`;
+      } else {
+        rxDiffChip = `<span class="chip chip-diff-low">🔵 ฉีดน้อยกว่าสั่ง ${diff}U</span>`;
+      }
+    }
 
-          <div class="node-badges">
-            ${item.symptom ? `<span class="mini-badge">🧘 ${item.symptom}</span>` : ''}
-            ${item.insulin ? `<span class="mini-badge" style="background:#e0f2fe; color:#0369a1;">💉 ฉีด ${item.insulin} U</span>` : ''}
-            ${item.rxBadge ? `<span class="mini-badge" style="background:#dcfce7; color:#166534; font-weight:bold;">${item.rxBadge}</span>` : ''}
-            ${item.carbs ? `<span class="mini-badge" style="background:#fef3c7; color:#92400e;">🍞 ${item.carbs} g</span>` : ''}
-            ${item.expectedVal ? `<span class="mini-badge" style="background:#f1f5f9;">คาด: ${item.expectedVal}</span>` : ''}
-          </div>
-
-          <div class="node-actions">
-            <button type="button" class="mini-btn" onclick="startEdit(${index})">✏️ แก้ไข</button>
-            <button type="button" class="mini-btn" style="color: #f43f5e;" onclick="deleteLog(${index})">🗑️ ลบ</button>
+    card.innerHTML = `
+      <div class="card-left">
+        <div class="glucose-circle" style="border-color: ${circleColor}">
+          <span class="val" style="color: ${circleColor}">${rec.glucose}</span>
+          <span class="lbl">mg/dL</span>
+        </div>
+        <div class="card-info">
+          <div class="info-title">${mealLabel} ${rec.actualInsulin ? `• ฉีด ${rec.actualInsulin} U` : ''}</div>
+          <div class="info-time">${timeStr} • ${rec.symptom || 'ปกติ'}</div>
+          <div class="info-chips">
+            ${rxDiffChip}
+            ${rec.carbs ? `<span class="chip">🍞 ${rec.carbs}g</span>` : ''}
+            ${rec.foodNote ? `<span class="chip">💬 ${rec.foodNote}</span>` : ''}
           </div>
         </div>
       </div>
+      <div class="card-actions">
+        <button class="action-mini-btn edit-btn" onclick="handleEdit(${idx})">✏️</button>
+        <button class="action-mini-btn del-btn" onclick="handleDelete(${idx})">🗑️</button>
+      </div>
     `;
-  }).join('');
-}
-
-// ==========================================
-// 8. แก้ไข / ลบ
-// ==========================================
-window.startEdit = function(index) {
-  const logs = JSON.parse(localStorage.getItem('glucose_logs') || '[]');
-  const item = logs[index];
-  if (!item) return;
-
-  glucoseInput.value = item.value;
-  insulinInput.value = item.insulin || '';
-  carbsInput.value = item.carbs || '';
-  foodNoteInput.value = item.foodNote || '';
-  editIndexInput.value = index;
-
-  document.querySelectorAll('#meal-pills .pill-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.val === item.meal);
-  });
-  mealTimeHidden.value = item.meal;
-
-  if (item.symptom) {
-    document.querySelectorAll('#symptom-pills .pill-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.val === item.symptom);
-    });
-    symptomValHidden.value = item.symptom;
-  }
-
-  submitBtn.innerHTML = '<span>💾 บันทึกการแก้ไข</span>';
-  cancelEditBtn.style.display = 'block';
-  updateLiveHint();
-  window.scrollTo({ top: 200, behavior: 'smooth' });
-};
-
-function resetForm() {
-  form.reset();
-  editIndexInput.value = '-1';
-  submitBtn.innerHTML = '<span>⚡ บันทึกจังหวะเวลานี้</span>';
-  cancelEditBtn.style.display = 'none';
-  expectedHint.style.display = 'none';
-
-  mealTimeHidden.value = 'ก่อนอาหารเช้า (ฉีดยา)';
-  symptomValHidden.value = 'สดชื่นปกติ';
-
-  document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('#meal-pills .pill-btn')?.classList.add('active');
-  document.querySelector('#symptom-pills .pill-btn')?.classList.add('active');
-
-  syncDoctorPrescription('ก่อนอาหารเช้า (ฉีดยา)');
-}
-cancelEditBtn.addEventListener('click', resetForm);
-
-window.deleteLog = function(index) {
-  if (confirm('คุณต้องการลบข้อมูลช่วงเวลานี้ใช่หรือไม่?')) {
-    const logs = JSON.parse(localStorage.getItem('glucose_logs') || '[]');
-    logs.splice(index, 1);
-    localStorage.setItem('glucose_logs', JSON.stringify(logs));
-    if (editIndexInput.value == index) resetForm();
-    refreshCockpit();
-  }
-};
-
-// ==========================================
-// 9. กราฟแนวโน้ม (โซนเป้าหมาย 70-130)
-// ==========================================
-const targetZonePlugin = {
-  id: 'targetZone',
-  beforeDraw(chart) {
-    const { ctx, chartArea: { left, right }, scales: { y } } = chart;
-    if (!y) return;
-
-    const y70 = y.getPixelForValue(70);
-    const y130 = y.getPixelForValue(130);
-
-    ctx.save();
-    ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
-    ctx.fillRect(left, y130, right - left, y70 - y130);
-
-    ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
-    ctx.lineWidth = 1.2;
-    ctx.setLineDash([3, 3]);
-
-    ctx.beginPath();
-    ctx.moveTo(left, y130); ctx.lineTo(right, y130);
-    ctx.moveTo(left, y70); ctx.lineTo(right, y70);
-    ctx.stroke();
-
-    ctx.restore();
-  }
-};
-
-function renderChart() {
-  const canvas = document.getElementById('glucoseChart');
-  if (!canvas) return;
-
-  const logs = JSON.parse(localStorage.getItem('glucose_logs') || '[]');
-  const recentLogs = logs.slice(0, 8).reverse();
-
-  const labels = recentLogs.map(i => i.date.split(' ')[0]);
-  const dataPoints = recentLogs.map(i => parseFloat(i.value));
-
-  if (chartInstance) chartInstance.destroy();
-
-  const ctx = canvas.getContext('2d');
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        data: dataPoints,
-        borderColor: '#0f172a',
-        backgroundColor: 'rgba(15, 23, 42, 0.03)',
-        borderWidth: 2,
-        tension: 0.35,
-        fill: true,
-        pointBackgroundColor: recentLogs.map(i => {
-          const v = parseFloat(i.value);
-          return v > 140 ? '#f43f5e' : (v < 70 ? '#38bdf8' : '#10b981');
-        }),
-        pointRadius: 5
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: { suggestedMin: 50, suggestedMax: 220, grid: { color: '#f1f5f9' } },
-        x: { grid: { display: false } }
-      },
-      plugins: { legend: { display: false } }
-    },
-    plugins: [targetZonePlugin]
+    logList.appendChild(card);
   });
 }
 
-// ==========================================
-// 10. ส่งออก CSV 9 คอลัมน์สำหรับแพทย์
-// ==========================================
-function exportToCSV() {
-  const logs = JSON.parse(localStorage.getItem('glucose_logs') || '[]');
-  if (logs.length === 0) return alert('ยังไม่มีข้อมูลบันทึกสำหรับส่งออก');
-
-  const headers = [
-    'วันที่และเวลา',
-    'ระดับน้ำตาล (mg/dL)',
-    'ช่วงเวลาตรวจ',
-    'อินซูลินฉีดจริง (U)',
-    'เทียบคำสั่งแพทย์',
-    'คาร์โบไฮเดรต (g)',
-    'เมนูอาหาร / พฤติกรรม',
-    'สภาพร่างกาย / อาการ',
-    'ค่าน้ำตาลคาดการณ์ (mg/dL)'
-  ];
-
-  const rows = logs.map(i => [
-    `"${i.date}"`,
-    `"${i.value}"`,
-    `"${i.meal}"`,
-    `"${i.insulin ? i.insulin + ' U' : '-'}"`,
-    `"${i.rxStatus || '-'}"`,
-    `"${i.carbs ? i.carbs + ' g' : '-'}"`,
-    `"${(i.foodNote || '-').replace(/"/g, '""')}"`,
-    `"${i.symptom || '-'}"`,
-    `"${i.expectedVal || '-'}"`
-  ]);
-
-  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `diabetes-prescription-report-${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
+function renderAll() {
+  renderTimeline();
+  updateTIR();
+  if (records.length > 0) {
+    updateGauge(records[0].glucose);
+  } else {
+    updateGauge(null);
+  }
 }
-if (exportBtn) exportBtn.addEventListener('click', exportToCSV);
 
 // ==========================================
-// 11. บันทึกข้อมูลประจำวัน
+// 6. FORM HANDLERS & EXPORT CSV
 // ==========================================
 form.addEventListener('submit', (e) => {
   e.preventDefault();
 
-  const value = glucoseInput.value;
-  const meal = mealTimeHidden.value;
-  const symptom = symptomValHidden.value;
-  const insulin = parseFloat(insulinInput.value) || null;
-  const carbs = parseFloat(carbsInput.value) || null;
+  const glucose = parseFloat(glucoseInput.value);
+  if (isNaN(glucose)) return;
+
+  const actualInsulin = parseFloat(insulinInput.value) || 0;
+  const carbs = parseFloat(carbsInput.value) || 0;
   const foodNote = foodNoteInput.value.trim();
-  const editIndex = parseInt(editIndexInput.value, 10);
-  const logs = JSON.parse(localStorage.getItem('glucose_logs') || '[]');
-  const settings = loadUserSettings();
+  const mealTime = mealTimeHidden.value;
+  const symptom = symptomValHidden.value;
 
-  let prescribedDose = 0;
-  if (meal.includes('ก่อนอาหารเช้า') || meal.includes('ก่อนมื้อเช้า')) {
-    prescribedDose = settings.morningDose;
-  } else if (meal.includes('ก่อนอาหารเย็น') || meal.includes('ก่อนมื้อเย็น')) {
-    prescribedDose = settings.eveningDose;
-  }
+  let prescribedInsulin = 0;
+  if (mealTime === 'morning') prescribedInsulin = rxConfig.morningDose || 0;
+  else if (mealTime === 'evening') prescribedInsulin = rxConfig.eveningDose || 0;
 
-  let rxStatus = '-';
-  let rxBadge = '';
+  const editIdx = parseInt(editIndexInput.value);
 
-  if (prescribedDose > 0 && insulin !== null) {
-    const diff = insulin - prescribedDose;
-    if (diff === 0) {
-      rxStatus = `ตรงตามหมอสั่ง (${prescribedDose} U)`;
-      rxBadge = `🟢 ตามสั่ง ${prescribedDose} U`;
-    } else if (diff > 0) {
-      rxStatus = `เกินหมอสั่ง +${diff} U (สั่ง ${prescribedDose} U)`;
-      rxBadge = `🟠 เกินสั่ง +${diff} U`;
-    } else {
-      rxStatus = `น้อยกว่าหมอสั่ง ${diff} U (สั่ง ${prescribedDose} U)`;
-      rxBadge = `🔵 น้อยกว่าสั่ง ${diff} U`;
-    }
-  }
-
-  const expectedVal = calculateExpectedGlucose(value, insulin, carbs, settings);
-  const now = new Date();
-  const dateStr = now.toLocaleString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-  const record = {
-    value,
-    meal,
-    symptom,
-    insulin,
-    carbs,
-    foodNote,
-    expectedVal,
-    prescribedDose,
-    rxStatus,
-    rxBadge,
-    date: dateStr,
-    timestamp: now.toISOString()
-  };
-
-  if (editIndex >= 0) {
-    record.date = `${logs[editIndex].date.split(' (แก้ไข)')[0]} (แก้ไข)`;
-    logs[editIndex] = record;
+  if (editIdx >= 0) {
+    records[editIdx] = {
+      ...records[editIdx],
+      glucose,
+      mealTime,
+      actualInsulin,
+      prescribedInsulin,
+      carbs,
+      symptom,
+      foodNote
+    };
+    resetForm();
   } else {
-    logs.unshift(record);
+    const newRecord = {
+      id: Date.now(),
+      timestamp: new Date().toISOString(),
+      glucose,
+      mealTime,
+      actualInsulin,
+      prescribedInsulin,
+      carbs,
+      symptom,
+      foodNote
+    };
+    records.unshift(newRecord);
+    resetForm();
   }
 
-  localStorage.setItem('glucose_logs', JSON.stringify(logs));
-  resetForm();
-  refreshCockpit();
+  saveRecords();
 });
 
-// ==========================================
-// 12. เริ่มต้นระบบ
-// ==========================================
-function refreshCockpit() {
-  loadTimeline();
-  renderChart();
+function resetForm() {
+  form.reset();
+  editIndexInput.value = '-1';
+  submitBtn.querySelector('.btn-text').textContent = '⚡ บันทึกจังหวะเวลานี้';
+  cancelEditBtn.classList.add('hidden');
+  updateRxHintForMeal(mealTimeHidden.value);
+  calculateExpectedDose();
 }
 
-loadUserSettings();
-syncDoctorPrescription(mealTimeHidden.value);
-refreshCockpit();
+window.handleEdit = function(index) {
+  const r = records[index];
+  editIndexInput.value = index;
+  glucoseInput.value = r.glucose;
+  insulinInput.value = r.actualInsulin || '';
+  carbsInput.value = r.carbs || '';
+  foodNoteInput.value = r.foodNote || '';
+
+  const mealPills = document.querySelectorAll('#meal-pills .pill-btn');
+  mealPills.forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-val') === r.mealTime);
+  });
+  mealTimeHidden.value = r.mealTime;
+
+  const symptomPills = document.querySelectorAll('#symptom-pills .pill-btn');
+  symptomPills.forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-val') === r.symptom);
+  });
+  symptomValHidden.value = r.symptom;
+
+  submitBtn.querySelector('.btn-text').textContent = '💾 อัปเดตรายการนี้';
+  cancelEditBtn.classList.remove('hidden');
+  updateRxHintForMeal(r.mealTime);
+  calculateExpectedDose();
+  window.scrollTo({ top: 180, behavior: 'smooth' });
+};
+
+window.handleDelete = function(index) {
+  if (confirm('ต้องการลบข้อมูลรายการนี้ใช่หรือไม่?')) {
+    records.splice(index, 1);
+    saveRecords();
+  }
+};
+
+cancelEditBtn.addEventListener('click', resetForm);
+
+glucoseInput.addEventListener('input', () => {
+  const g = parseFloat(glucoseInput.value);
+  if (!isNaN(g)) updateGauge(g);
+  calculateExpectedDose();
+});
+
+carbsInput.addEventListener('input', calculateExpectedDose);
+
+// Export CSV 9 Columns พร้อม BOM ป้องกันภาษาไทยเพี้ยนใน Excel
+exportCsvBtn.addEventListener('click', () => {
+  if (records.length === 0) {
+    alert('ยังไม่มีข้อมูลสำหรับส่งออก');
+    return;
+  }
+
+  const headers = [
+    "วันที่", "เวลา", "ระดับน้ำตาล (mg/dL)", "ช่วงเวลา/มื้อ", 
+    "ยาฉีดจริง (Unit)", "ยาตามสั่งหมอ (Unit)", "ผลต่างจากคำสั่งหมอ", 
+    "คาร์โบไฮเดรต (g)", "สภาวะร่างกาย/หมายเหตุ"
+  ];
+
+  const rows = records.map(r => {
+    const d = new Date(r.timestamp);
+    const dateStr = d.toLocaleDateString('th-TH');
+    const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+    let mealLabel = 'มื้อทั่วไป';
+    if (r.mealTime === 'morning') mealLabel = 'ก่อนมื้อเช้า';
+    else if (r.mealTime === 'evening') mealLabel = 'ก่อนมื้อเย็น';
+    else if (r.mealTime === 'post-meal') mealLabel = 'หลังอาหาร 2h';
+    else if (r.mealTime === 'bedtime') mealLabel = 'ก่อนนอน';
+
+    let diffText = 'ไม่มีคำสั่ง';
+    if (r.prescribedInsulin > 0) {
+      const diff = (r.actualInsulin || 0) - r.prescribedInsulin;
+      diffText = diff === 0 ? 'ตรงตามสั่ง' : (diff > 0 ? `เกิน +${diff}` : `ขาด ${diff}`);
+    }
+
+    const note = [r.symptom, r.foodNote].filter(Boolean).join(' - ');
+
+    return [
+      `"${dateStr}"`, `"${timeStr}"`, r.glucose, `"${mealLabel}"`,
+      r.actualInsulin || 0, r.prescribedInsulin || 0, `"${diffText}"`,
+      r.carbs || 0, `"${note.replace(/"/g, '""')}"`
+    ].join(',');
+  });
+
+  const csvContent = "\uFEFF" + [headers.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `diabetes-prescription-report-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// Modal Settings Listeners
+toggleSettingsBtn.addEventListener('click', () => settingsPanel.classList.remove('hidden'));
+closeSettingsBtn.addEventListener('click', () => settingsPanel.classList.add('hidden'));
+saveSettingsBtn.addEventListener('click', saveSettings);
+
+// ==========================================
+// 7. PWA SERVICE WORKER & INIT
+// ==========================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('SW Ready:', reg.scope))
+      .catch(err => console.error('SW Error:', err));
+  });
+}
+
+// Initial Boot
+loadSettings();
+setupPills();
+loadRecords();
+updateRxHintForMeal(mealTimeHidden.value);
