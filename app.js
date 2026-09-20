@@ -18,6 +18,7 @@ const settingsPanel = document.getElementById('settings-panel');
 const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 const saveSettingsBtn = document.getElementById('save-settings-btn');
+const clearAllDataBtn = document.getElementById('clear-all-data-btn');
 const settingMorningDoseInput = document.getElementById('setting-morning-dose');
 const settingEveningDoseInput = document.getElementById('setting-evening-dose');
 const settingTargetInput = document.getElementById('setting-target');
@@ -489,6 +490,27 @@ exportCsvBtn.addEventListener('click', () => {
 toggleSettingsBtn.addEventListener('click', () => settingsPanel.classList.remove('hidden'));
 closeSettingsBtn.addEventListener('click', () => settingsPanel.classList.add('hidden'));
 saveSettingsBtn.addEventListener('click', saveSettings);
+
+// ล้างข้อมูลบันทึกทั้งหมด พร้อมระบบยืนยันป้องกันการกดพลาด
+if (clearAllDataBtn) {
+  clearAllDataBtn.addEventListener('click', () => {
+    if (records.length === 0) {
+      alert('ไม่มีข้อมูลประวัติให้ล้างครับ');
+      return;
+    }
+
+    const confirm1 = confirm(`⚠️ คำเตือน: คุณต้องการลบประวัติบันทึกทั้งหมดจำนวน ${records.length} รายการ ใช่หรือไม่?\n(ข้อมูลที่ลบแล้วจะไม่สามารถกู้คืนได้)`);
+    if (confirm1) {
+      const confirm2 = confirm('ยืนยันครั้งสุดท้าย: กด "ตกลง" เพื่อล้างประวัติทั้งหมดทันที');
+      if (confirm2) {
+        records = [];
+        saveRecords();
+        settingsPanel.classList.add('hidden');
+        alert('✅ ล้างข้อมูลประวัติบันทึกทั้งหมดเรียบร้อยแล้ว');
+      }
+    }
+  });
+}
 
 // ==========================================
 // 7. PWA SERVICE WORKER & INIT
