@@ -2,199 +2,196 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Metabolic Cockpit - สมุดบันทึกเบาหวาน</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Metabolic Cockpit - Diabetes Tracker</title>
+  
   <meta name="theme-color" content="#0f172a">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-512.png" type="image/png">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="cockpit-container">
-    
-    <!-- ส่วนหัว Header -->
-    <header class="app-header">
-      <div>
-        <h1 class="logo-title">METABOLIC COCKPIT</h1>
-        <p class="logo-sub">บันทึกระดับน้ำตาล & อินซูลินตามหมอสั่ง</p>
-      </div>
-      <div class="header-actions">
-        <button type="button" id="toggle-settings-btn" class="icon-round-btn" title="ตั้งค่าสูตรแพทย์">⚙️</button>
-        <button type="button" id="export-csv-btn" class="icon-round-btn" title="ส่งออก CSV">📥</button>
-      </div>
-    </header>
 
-    <!-- แผงตั้งค่ายาตามคำสั่งแพทย์ (เปิด/ปิดได้) -->
-    <section id="settings-panel" class="settings-modal" style="display: none;">
+  <!-- Cockpit Header -->
+  <header class="cockpit-header">
+    <div class="brand">
+      <span class="status-indicator live"></span>
+      <h1 class="brand-title">METABOLIC COCKPIT</h1>
+    </div>
+    <div class="header-actions">
+      <!-- ปุ่มเปิดคู่มือพร้อมพิมพ์ A4 -->
+      <a href="patient_guide.html" target="_blank" class="icon-round-btn" title="คู่มือผู้ป่วยและการพิมพ์" style="text-decoration: none;">📄</a>
+      <button type="button" id="toggle-settings-btn" class="icon-round-btn" title="ตั้งค่าสูตรแพทย์">⚙️</button>
+      <button type="button" id="export-csv-btn" class="icon-round-btn" title="ส่งออก CSV">📥</button>
+    </div>
+  </header>
+
+  <!-- Rx Modal Settings Panel -->
+  <div id="settings-panel" class="settings-drawer hidden">
+    <div class="settings-card">
       <div class="settings-header">
-        <h3>📋 แผนการรักษาและยาตามคำสั่งแพทย์</h3>
+        <h3>📋 คำสั่งแพทย์ประจำตัว (Prescription Profile)</h3>
         <button type="button" id="close-settings-btn" class="close-btn">&times;</button>
       </div>
       
-      <div class="settings-box-inner">
-        <span class="settings-label-highlight">ขนาดยาอินซูลินที่หมอสั่งประจำวัน</span>
-        <div class="settings-grid" style="grid-template-columns: 1fr 1fr; margin-top: 8px;">
-          <div>
-            <label>🌅 ยาเช้าตามสั่ง (ยูนิต)</label>
-            <input type="number" id="setting-morning-dose" placeholder="เช่น 14" step="0.5">
+      <div class="settings-body">
+        <div class="input-grid">
+          <div class="field-item">
+            <label>🌅 ขนาดยาเช้าตามสั่ง (U)</label>
+            <input type="number" id="setting-morning-dose" min="0" step="0.5" placeholder="เช่น 14">
           </div>
-          <div>
-            <label>🌇 ยาเย็นตามสั่ง (ยูนิต)</label>
-            <input type="number" id="setting-evening-dose" placeholder="เช่น 8" step="0.5">
+          <div class="field-item">
+            <label>🌇 ขนาดยาเย็นตามสั่ง (U)</label>
+            <input type="number" id="setting-evening-dose" min="0" step="0.5" placeholder="เช่น 8">
+          </div>
+          <div class="field-item">
+            <label>🎯 ค่าน้ำตาลเป้าหมาย (mg/dL)</label>
+            <input type="number" id="setting-target" min="60" max="250" placeholder="110">
+          </div>
+          <div class="field-item">
+            <label>📉 ISF (1U ลดได้กี่ mg/dL)</label>
+            <input type="number" id="setting-isf" min="1" placeholder="40">
+          </div>
+          <div class="field-item">
+            <label>🍞 ICR (1U คุมคาร์บกี่ g)</label>
+            <input type="number" id="setting-icr" min="1" placeholder="15">
           </div>
         </div>
+        <button type="button" id="save-settings-btn" class="primary-btn mt-3">💾 บันทึกแผนคำสั่งแพทย์</button>
       </div>
+    </div>
+  </div>
 
-      <div class="settings-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 10px;">
-        <div>
-          <label>เป้าหมาย (mg/dL)</label>
-          <input type="number" id="setting-target" placeholder="เช่น 110">
-        </div>
-        <div>
-          <label>ISF (1 U ลด)</label>
-          <input type="number" id="setting-isf" placeholder="เช่น 40">
-        </div>
-        <div>
-          <label>ICR (1 U คุมคาร์บ)</label>
-          <input type="number" id="setting-icr" placeholder="เช่น 15">
-        </div>
-      </div>
-      
-      <button type="button" id="save-settings-btn" class="btn-dark" style="margin-top: 12px;">💾 บันทึกแผนคำสั่งแพทย์</button>
-    </section>
-
-    <!-- 1. เกจหน้าปัดกึ่งวงกลม (Metabolic Semi-Gauge) -->
-    <section class="gauge-hero-card">
+  <main class="cockpit-viewport">
+    
+    <!-- Dial Gauge Widget -->
+    <section class="gauge-section">
       <div class="gauge-wrapper">
-        <svg viewBox="0 0 200 110" class="gauge-svg">
-          <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#e2e8f0" stroke-width="16" stroke-linecap="round"/>
-          <path d="M 20 100 A 80 80 0 0 1 50 48" fill="none" stroke="#38bdf8" stroke-width="16" stroke-linecap="round"/>
-          <path d="M 54 44 A 80 80 0 0 1 146 44" fill="none" stroke="#10b981" stroke-width="16"/>
-          <path d="M 150 48 A 80 80 0 0 1 180 100" fill="none" stroke="#f43f5e" stroke-width="16" stroke-linecap="round"/>
-          <line id="gauge-needle" x1="100" y1="100" x2="30" y2="100" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
-          <circle cx="100" cy="100" r="7" fill="#0f172a"/>
+        <svg viewBox="0 0 200 115" class="semicircle-gauge">
+          <path class="gauge-track" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke-width="16" stroke-linecap="round"/>
+          <path id="gauge-fill" class="gauge-progress" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke-width="16" stroke-linecap="round"/>
+          <line id="gauge-needle" x1="100" y1="100" x2="100" y2="28" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="100" cy="100" r="7" fill="#38bdf8"/>
         </svg>
         
-        <div class="gauge-readout">
-          <span class="readout-label">ระดับล่าสุด</span>
-          <div class="readout-value-row">
-            <span id="live-glucose-val">--</span>
-            <small>mg/dL</small>
-          </div>
-          <span id="live-status-pill" class="status-pill">รอการบันทึก</span>
+        <div class="gauge-value-display">
+          <span id="display-glucose" class="digit">--</span>
+          <span class="unit">mg/dL</span>
         </div>
+        <div id="gauge-status" class="gauge-status-badge status-normal">พร้อมรับข้อมูล</div>
       </div>
 
-      <!-- แถบ Time-in-Range (TIR) -->
-      <div class="tir-section">
-        <div class="tir-title-row">
-          <span>สัดส่วนในเกณฑ์ (Time-in-Range)</span>
-          <strong id="tir-percent-in">0%</strong>
+      <!-- Time In Range Segment Bar -->
+      <div class="tir-container">
+        <div class="tir-meta">
+          <span>Time-In-Range (ประวัติรวม)</span>
+          <span id="tir-percent">0% ในเกณฑ์</span>
         </div>
-        <div class="tir-bar-container">
-          <div id="tir-bar-low" class="tir-segment tir-low" style="width: 0%;"></div>
-          <div id="tir-bar-normal" class="tir-segment tir-normal" style="width: 0%;"></div>
-          <div id="tir-bar-high" class="tir-segment tir-high" style="width: 0%;"></div>
-        </div>
-        <div class="tir-legend">
-          <span><i class="dot dot-low"></i> ต่ำ (&lt;70): <b id="tir-val-low">0%</b></span>
-          <span><i class="dot dot-norm"></i> ปกติ (70-140): <b id="tir-val-norm">0%</b></span>
-          <span><i class="dot dot-high"></i> สูง (&gt;140): <b id="tir-val-high">0%</b></span>
+        <div class="tir-bar">
+          <div id="tir-low" class="tir-seg seg-low" style="width: 0%"></div>
+          <div id="tir-target" class="tir-seg seg-target" style="width: 0%"></div>
+          <div id="tir-high" class="tir-seg seg-high" style="width: 0%"></div>
         </div>
       </div>
     </section>
 
-    <!-- 2. ฟอร์มบันทึก Cockpit -->
-    <section class="cockpit-card">
-      <form id="glucose-form">
+    <!-- Quick Pilot Form -->
+    <section class="pilot-form-card">
+      <form id="glucose-form" autocomplete="off">
         <input type="hidden" id="edit-index" value="-1">
+        <input type="hidden" id="meal-time" value="morning">
+        <input type="hidden" id="symptom-val" value="สดชื่น">
 
-        <div class="dial-inputs">
-          <div class="input-glow-card">
-            <span class="input-hint">🩸 ระดับน้ำตาล</span>
-            <input type="number" id="glucose-val" placeholder="0" required inputmode="numeric">
-          </div>
-          <div class="input-glow-card">
-            <span class="input-hint" id="rx-hint-label">💉 ฉีดจริง (หมอสั่ง: -)</span>
-            <input type="number" id="insulin-val" placeholder="0" step="0.5" inputmode="decimal">
-          </div>
-          <div class="input-glow-card">
-            <span class="input-hint">🍞 คาร์บ (g)</span>
-            <input type="number" id="carbs-val" placeholder="0" step="1" inputmode="numeric">
+        <!-- Pills: Meal Selection -->
+        <div class="form-row-group">
+          <label class="group-label">ช่วงเวลาและจังหวะยา</label>
+          <div class="pills-container" id="meal-pills">
+            <button type="button" class="pill-btn active" data-val="morning">🌅 ก่อนมื้อเช้า (ฉีดยา)</button>
+            <button type="button" class="pill-btn" data-val="evening">🌇 ก่อนมื้อเย็น (ฉีดยา)</button>
+            <button type="button" class="pill-btn" data-val="post-meal">⏱️ หลังอาหาร 2h</button>
+            <button type="button" class="pill-btn" data-val="bedtime">🌙 ก่อนนอน</button>
           </div>
         </div>
 
-        <!-- Quick-Tap Pills: มื้ออาหาร เช้า-เย็น -->
-        <div class="pill-group-container">
-          <label class="group-label">ช่วงเวลาจังหวะชีวิต:</label>
-          <div class="pill-selector" id="meal-pills">
-            <button type="button" class="pill-btn active" data-val="ก่อนอาหารเช้า (ฉีดยา)">🌅 ก่อนมื้อเช้า (ฉีดยา)</button>
-            <button type="button" class="pill-btn" data-val="หลังอาหารเช้า 2h">⏱️ หลังมื้อเช้า 2h</button>
-            <button type="button" class="pill-btn" data-val="ก่อนอาหารเย็น (ฉีดยา)">🌇 ก่อนมื้อเย็น (ฉีดยา)</button>
-            <button type="button" class="pill-btn" data-val="หลังอาหารเย็น 2h">⏱️ หลังมื้อเย็น 2h</button>
-            <button type="button" class="pill-btn" data-val="ก่อนนอน">🌙 ก่อนนอน</button>
+        <!-- Numeric Metrics Input -->
+        <div class="metrics-grid">
+          <div class="metric-input-card">
+            <span class="metric-icon">🩸</span>
+            <label for="glucose-val">ระดับน้ำตาล</label>
+            <div class="input-wrap">
+              <input type="number" id="glucose-val" required min="20" max="600" placeholder="105">
+              <span class="sub-unit">mg/dL</span>
+            </div>
           </div>
-          <input type="hidden" id="meal-time" value="ก่อนอาหารเช้า (ฉีดยา)">
+
+          <div class="metric-input-card highlight-border">
+            <span class="metric-icon">💉</span>
+            <div class="metric-header-wrap">
+              <label for="insulin-val">ฉีดจริง (Actual)</label>
+              <small id="rx-hint-label" class="rx-pill">คำสั่งหมอ 0 U</small>
+            </div>
+            <div class="input-wrap">
+              <input type="number" id="insulin-val" min="0" max="100" step="0.5" placeholder="0">
+              <span class="sub-unit">Unit</span>
+            </div>
+            <div id="expected-hint" class="expected-calc-text">คาดการณ์: -</div>
+          </div>
+
+          <div class="metric-input-card">
+            <span class="metric-icon">🍞</span>
+            <label for="carbs-val">ปริมาณคาร์บ</label>
+            <div class="input-wrap">
+              <input type="number" id="carbs-val" min="0" max="300" placeholder="0">
+              <span class="sub-unit">กรัม</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Quick-Tap Pills: อาการทางกาย -->
-        <div class="pill-group-container">
-          <label class="group-label">ความรู้สึก / อาการทางกาย:</label>
-          <div class="pill-selector" id="symptom-pills">
-            <button type="button" class="pill-btn active" data-val="สดชื่นปกติ">🟢 สดชื่นปกติ</button>
-            <button type="button" class="pill-btn" data-val="หิวสั่น/เหงื่อแตก">⚡ หิวสั่น</button>
-            <button type="button" class="pill-btn" data-val="วิงเวียน/มึนหัว">🌀 วิงเวียน</button>
-            <button type="button" class="pill-btn" data-val="อ่อนเพลีย/ง่วง">💤 อ่อนเพลีย</button>
+        <!-- Pills: Symptoms -->
+        <div class="form-row-group mt-2">
+          <label class="group-label">สภาวะร่างกายขณะนี้</label>
+          <div class="pills-container" id="symptom-pills">
+            <button type="button" class="pill-btn active" data-val="สดชื่น">🟢 สดชื่นปกติ</button>
+            <button type="button" class="pill-btn" data-val="หิวสั่น">⚡ หิวสั่น/เหงื่อแตก</button>
+            <button type="button" class="pill-btn" data-val="วิงเวียน">🌀 วิงเวียน/ตาพร่า</button>
+            <button type="button" class="pill-btn" data-val="เหนื่อยล้า">💤 อ่อนเพลีย</button>
           </div>
-          <input type="hidden" id="symptom-val" value="สดชื่นปกติ">
         </div>
 
-        <input type="text" id="food-note" class="minimal-text-input" placeholder="✍️ บันทึกอาหาร หรือพฤติกรรม (เช่น ข้าวผัดกะเพรา, เดิน 20 นาที)">
+        <!-- Additional Context -->
+        <div class="form-row-group mt-2">
+          <input type="text" id="food-note" class="line-input" placeholder="✍️ บันทึกอาหาร หรือกิจกรรมเสริม...">
+        </div>
 
-        <!-- ข้อความคาดการณ์สด -->
-        <div id="expected-hint" class="expected-hud" style="display: none;"></div>
-
-        <button type="submit" id="submit-btn" class="cockpit-action-btn">
-          <span>⚡ บันทึกจังหวะเวลานี้</span>
-        </button>
-        <button type="button" id="cancel-edit-btn" class="btn-cancel" style="display: none;">ยกเลิกการแก้ไข</button>
+        <!-- Actions -->
+        <div class="form-action-row">
+          <button type="submit" id="submit-btn" class="submit-action-btn">
+            <span class="btn-text">⚡ บันทึกจังหวะเวลานี้</span>
+          </button>
+          <button type="button" id="cancel-edit-btn" class="cancel-action-btn hidden">ยกเลิก</button>
+        </div>
       </form>
     </section>
 
-    <!-- 3. ไทม์ไลน์ชีวิต (Metabolic Journey) -->
+    <!-- Metabolic Stream (Timeline) -->
     <section class="timeline-section">
-      <div class="section-title-row">
-        <h3>📅 เส้นทางจังหวะชีวิต (Metabolic Journey)</h3>
-        <select id="timeframe-mode" class="time-filter-mini">
-          <option value="all">ทั้งหมด</option>
-          <option value="month">เดือนนี้</option>
-          <option value="year">ปีนี้</option>
-        </select>
+      <div class="timeline-header">
+        <h2>⏱️ ไทม์ไลน์บันทึกล่าสุด</h2>
+        <span id="log-counter" class="counter-badge">0 รายการ</span>
       </div>
-
-      <div class="timeline-stream" id="log-timeline"></div>
-    </section>
-
-    <!-- กราฟ Pocket Chart -->
-    <section class="chart-pocket">
-      <h4>📈 แนวโน้มต่อเนื่อง (โซนปกติ 70-130)</h4>
-      <div style="height: 180px; width: 100%;">
-        <canvas id="glucoseChart"></canvas>
+      <div id="log-list" class="timeline-stream">
+        <!-- Records injected by JS -->
       </div>
     </section>
 
-    <!-- Disclaimer ทางการแพทย์ -->
-    <footer class="safety-footnote">
-      ⚠️ ตัวเลขและการคาดการณ์มีไว้เพื่อเป็นสมุดสังเกตส่วนบุคคลเท่านั้น ห้ามปรับเปลี่ยนขนาดยาอินซูลินเองโดยไม่ได้รับคำแนะนำจากแพทย์ประจำตัว
-    </footer>
-
-  </div>
+  </main>
 
   <script src="app.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js');
-    }
-  </script>
 </body>
 </html>
