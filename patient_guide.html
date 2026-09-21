@@ -3,327 +3,610 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>คู่มือผู้ป่วย - ระบบบันทึกเบาหวาน Metabolic Cockpit</title>
+  <title>คู่มือผู้ป่วย: ระบบบันทึกเบาหวานและอินซูลิน (A4 Guide)</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
-
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+  
   <style>
+    /* ==========================================
+       A4 PRINT OPTIMIZED STYLESHEET
+       ========================================== */
     @page {
       size: A4 portrait;
-      margin: 8mm 10mm;
+      margin: 10mm 12mm;
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
 
     body {
       font-family: 'Sarabun', sans-serif;
-      color: #1e293b;
-      background: #f8fafc;
-      font-size: 11.5px;
+      color: #0f172a;
+      background: #f1f5f9;
       line-height: 1.35;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
     }
 
-    .print-container {
+    /* แถบแจ้งเตือนด้านบนจอ (ไม่พิมพ์ออกทางเครื่องพิมพ์) */
+    .screen-toolbar {
       width: 100%;
       max-width: 210mm;
-      margin: 0 auto;
-      background: #ffffff;
-      padding: 12px 16px;
-    }
-
-    .no-print-bar {
-      background: #0284c7;
-      color: white;
-      padding: 10px;
-      text-align: center;
       margin-bottom: 12px;
-      border-radius: 8px;
+      background: #0284c7;
+      color: #ffffff;
+      padding: 10px 16px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.25);
     }
 
     .print-btn {
-      background: #22c55e;
-      color: white;
+      background: #16a34a;
+      color: #ffffff;
       border: none;
-      padding: 6px 18px;
+      padding: 8px 18px;
       font-size: 14px;
-      font-weight: bold;
-      border-radius: 6px;
+      font-weight: 700;
+      border-radius: 8px;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      transition: background 0.2s;
     }
 
-    .header-table {
-      width: 100%;
-      border-collapse: collapse;
+    .print-btn:hover {
+      background: #15803d;
+    }
+
+    /* แผ่นกระดาษ A4 เสมือนจริง */
+    .sheet-a4 {
+      width: 210mm;
+      min-height: 297mm;
+      background: #ffffff;
+      padding: 12mm 14mm;
+      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.08);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* ส่วนหัวคู่มือ */
+    .guide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
       border-bottom: 2px solid #0284c7;
-      padding-bottom: 6px;
-      margin-bottom: 8px;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
     }
 
-    .app-title {
-      font-size: 16px;
+    .guide-title h1 {
+      font-size: 18px;
       font-weight: 700;
       color: #0369a1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .guide-title h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+      margin-top: 2px;
+    }
+
+    .app-link-badge {
+      font-size: 11px;
+      color: #0284c7;
+      background: #f0f9ff;
+      padding: 2px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 4px;
+      border: 1px solid #bae6fd;
+    }
+
+    .qr-container {
+      text-align: center;
     }
 
     .qr-box {
-      border: 1px dashed #64748b;
-      padding: 4px;
-      text-align: center;
-      background: #f8fafc;
-      border-radius: 6px;
-    }
-
-    .info-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 8px;
-    }
-
-    .info-table td {
-      padding: 3px 6px;
+      width: 68px;
+      height: 68px;
       border: 1px solid #cbd5e1;
-      font-size: 11px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f8fafc;
+      padding: 2px;
     }
 
-    .section-header {
+    .qr-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .qr-caption {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 2px;
+      font-weight: 600;
+    }
+
+    /* กล่องข้อมูลคนไข้ */
+    .patient-box {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .field-line {
+      display: flex;
+      align-items: baseline;
       font-size: 12px;
-      font-weight: 700;
-      color: #0f172a;
-      background: #e2e8f0;
-      padding: 3px 8px;
-      border-left: 4px solid #0284c7;
-      margin: 6px 0 4px 0;
     }
 
-    .grid-2 {
+    .field-line label {
+      font-weight: 600;
+      color: #334155;
+      white-space: nowrap;
+      margin-right: 6px;
+    }
+
+    .dot-line {
+      flex: 1;
+      border-bottom: 1px dotted #94a3b8;
+      min-height: 16px;
+    }
+
+    /* 2 คอลัมน์ด้านบน: แผนยา 3 มื้อ และขั้นตอนการใช้งาน */
+    .dual-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 6px;
+      gap: 10px;
+      margin-bottom: 10px;
     }
 
-    .box-card {
+    .card {
       border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      padding: 6px 8px;
+      border-radius: 8px;
+      padding: 10px;
       background: #ffffff;
     }
 
-    .status-table {
+    .card-head {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      border-bottom: 1.5px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .rx-list {
+      list-style: none;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .rx-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 6px;
+      border-radius: 6px;
+      background: #f8fafc;
+    }
+
+    .step-list {
+      list-style: none;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .step-list li {
+      display: flex;
+      gap: 6px;
+      line-height: 1.3;
+    }
+
+    .step-num {
+      background: #0284c7;
+      color: #ffffff;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* ตารางเกณฑ์ค่าน้ำตาล */
+    .table-section {
+      margin-bottom: 10px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    table.metric-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 4px;
+      font-size: 12px;
     }
 
-    .status-table th, .status-table td {
+    table.metric-table th, table.metric-table td {
       border: 1px solid #cbd5e1;
-      padding: 3px 6px;
+      padding: 6px 8px;
       text-align: left;
-      font-size: 10.5px;
     }
 
-    .status-table th {
+    table.metric-table th {
       background: #f1f5f9;
+      font-weight: 700;
+      color: #1e293b;
     }
 
-    .rule-15-box {
-      background: #eff6ff;
-      border: 1px solid #93c5fd;
+    .badge-zone {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    .zone-low { background: #e0f2fe; color: #0369a1; border: 1px solid #7dd3fc; }
+    .zone-normal { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .zone-high { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+
+    /* กรอบกฎ 15-15 ฉุกเฉิน */
+    .emergency-box {
+      background: #fff1f2;
+      border: 1.5px solid #fda4af;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .emergency-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #be123c;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .emergency-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      font-size: 11.5px;
+      margin-top: 6px;
+    }
+
+    .emergency-step {
+      background: #ffffff;
+      padding: 6px 8px;
       border-radius: 6px;
-      padding: 6px 10px;
-      margin: 6px 0;
+      border: 1px solid #fecdd3;
+    }
+
+    .emergency-step strong {
+      display: block;
+      color: #9f1239;
+      margin-bottom: 2px;
+    }
+
+    /* จานอาหาร 2:1:1 */
+    .plate-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px;
+      background: #f8fafc;
     }
 
     .plate-grid {
       display: grid;
-      grid-template-columns: 1.5fr 1fr 1fr;
-      gap: 6px;
-      margin-top: 4px;
-    }
-
-    .plate-item {
-      padding: 4px 6px;
-      border-radius: 4px;
-      font-size: 10.5px;
-    }
-
-    .sign-table {
-      width: 100%;
-      border-collapse: collapse;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 8px;
+      font-size: 11.5px;
       margin-top: 6px;
     }
 
-    .sign-table td {
-      border: 1px solid #cbd5e1;
-      padding: 5px 8px;
-      vertical-align: top;
-      font-size: 10.5px;
+    .plate-col {
+      background: #ffffff;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
     }
 
-    .footer-note {
-      font-size: 9px;
+    .plate-col h4 {
+      font-size: 12px;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .color-veg { color: #15803d; }
+    .color-protein { color: #b45309; }
+    .color-carb { color: #0284c7; }
+
+    /* ท้ายกระดาษ */
+    .guide-footer {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 6px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10.5px;
       color: #64748b;
-      text-align: center;
-      margin-top: 6px;
+      margin-top: 8px;
     }
 
+    /* สำหรับสั่งพิมพ์ (Print to PDF / Paper) */
     @media print {
-      .no-print-bar { display: none !important; }
-      body { background: white; }
-      .print-container { padding: 0; }
+      body {
+        background: transparent;
+        padding: 0;
+      }
+
+      .screen-toolbar {
+        display: none !important;
+      }
+
+      .sheet-a4 {
+        box-shadow: none;
+        border-radius: 0;
+        width: 100%;
+        min-height: auto;
+        padding: 0;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- Floating Print Bar -->
-  <div class="no-print-bar">
-    <span>💡 หน้าต่างนี้จัดรูปแบบสำหรับกระดาษ A4 หน้าเดียวจบเรียบร้อยแล้ว </span>
-    <button class="print-btn" onclick="window.print()">🖨️ สั่งพิมพ์คู่มือ A4 (Print to PDF)</button>
+  <!-- แถบเครื่องมือสั่งพิมพ์หน้าจอ -->
+  <div class="screen-toolbar">
+    <div>
+      <strong>🖨️ หน้าต่างนี้จัดรูปแบบสำหรับกระดาษ A4 หน้าเดียวจบเรียบร้อยแล้ว</strong>
+      <div style="font-size: 11px; opacity: 0.9;">สามารถกดปุ่มสั่งพิมพ์เป็นกระดาษหรือบันทึกเป็น PDF ส่งให้คนไข้ได้ทันที</div>
+    </div>
+    <button type="button" class="print-btn" onclick="window.print()">
+      🖨️ สั่งพิมพ์คู่มือ A4 (Print to PDF)
+    </button>
   </div>
 
-  <div class="print-container">
+  <!-- เนื้อหาคู่มือ A4 -->
+  <div class="sheet-a4">
     
-    <!-- Top Header -->
-    <table class="header-table">
-      <tr>
-        <td style="vertical-align: middle;">
-          <div class="app-title">📋 คู่มือผู้ป่วย: ระบบบันทึกเบาหวานและอินซูลิน (Metabolic Cockpit)</div>
-          <div style="font-size: 11px; color: #475569; margin-top: 2px;">
-            <strong>🌐 ลิงก์เข้าใช้งาน:</strong> https://aoftech.github.io/diabetes-app/<br>
-            <strong>📱 ติดตั้งแอป:</strong> <em>Android</em> (Chrome ➔ แตะ ⋮ ➔ ติดตั้งแอป) | <em>iPhone</em> (Safari ➔ แตะแชร์ [⎋] ➔ เพิ่มไปยังหน้าจอโฮม)
+    <div>
+      <!-- ส่วนหัว -->
+      <header class="guide-header">
+        <div class="guide-title">
+          <h1>📋 คู่มือผู้ป่วย: ระบบบันทึกเบาหวานและอินซูลิน</h1>
+          <h2>(Metabolic Cockpit & Patient Management)</h2>
+          <div class="app-link-badge">
+            🌐 ลิงก์เข้าใช้งาน: <strong>https://aoftech.github.io/diabetes-app/</strong>
           </div>
-        </td>
-        <td style="width: 95px; vertical-align: middle; text-align: right;">
+        </div>
+        <div class="qr-container">
           <div class="qr-box">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=https://aoftech.github.io/diabetes-app/" alt="QR Code" width="75" height="75"><br>
-            <span style="font-size: 8.5px; color: #64748b;">📷 สแกนเข้าแอป</span>
+            <!-- QR Code ชี้ไปที่เว็บแอปจริง -->
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://aoftech.github.io/diabetes-app/" alt="QR Code App">
           </div>
-        </td>
-      </tr>
-    </table>
+          <div class="qr-caption">📱 สแกนเข้าแอป</div>
+        </div>
+      </header>
 
-    <!-- Patient Details -->
-    <table class="info-table">
-      <tr>
-        <td style="width: 55%;"><strong>ชื่อ - นามสกุล:</strong> ........................................................................</td>
-        <td style="width: 45%;"><strong>เลขประจำตัวผู้ป่วย (HN):</strong> ..........................................</td>
-      </tr>
-      <tr>
-        <td><strong>เบอร์โทรติดต่อผู้ป่วย/ญาติ:</strong> ...........................................................</td>
-        <td><strong>แพทย์ผู้ดูแล/คลินิก:</strong> ........................................................</td>
-      </tr>
-    </table>
+      <!-- ข้อมูลผู้ป่วย -->
+      <section class="patient-box">
+        <div>
+          <div class="field-line">
+            <label>ชื่อ - นามสกุล:</label>
+            <div class="dot-line"></div>
+          </div>
+          <div class="field-line" style="margin-top: 4px;">
+            <label>เบอร์โทรติดต่อผู้ป่วย/ญาติ:</label>
+            <div class="dot-line"></div>
+          </div>
+        </div>
+        <div>
+          <div class="field-line">
+            <label>HN:</label>
+            <div class="dot-line"></div>
+          </div>
+          <div class="field-line" style="margin-top: 4px;">
+            <label>แพทย์ผู้ดูแล:</label>
+            <div class="dot-line"></div>
+          </div>
+        </div>
+      </section>
 
-    <!-- Section 1 & 2 Grid -->
-    <div class="grid-2">
-      <div class="box-card">
-        <div class="section-header">1. แผนขนาดยาตามสั่งแพทย์ (กรอกใน ⚙️ ครั้งแรก)</div>
-        <div style="font-size: 11px; padding: 2px 0;">
-          • 🌅 <strong>ยาเช้าตามสั่ง:</strong> ........... ยูนิต (เช่น 14 U)<br>
-          • 🌇 <strong>ยาเย็นตามสั่ง:</strong> ........... ยูนิต (เช่น 8 U)<br>
-          • 🎯 <strong>เป้าหมายน้ำตาล:</strong> ........... mg/dL (เกณฑ์ดี 70 - 140)
+      <!-- 2 คอลัมน์: แผนยา 3 มื้อ และขั้นตอนการใช้งาน -->
+      <div class="dual-grid">
+        <!-- 1. แผนขนาดยาตามสั่งแพทย์ (เช้า - เที่ยง - เย็น) -->
+        <div class="card">
+          <div class="card-head">
+            <span>💉 1. แผนขนาดยาตามสั่งแพทย์ (3 มื้อหลัก)</span>
+          </div>
+          <ul class="rx-list">
+            <li class="rx-item">
+              <span>🌅 ก่อนมื้อเช้า:</span>
+              <strong>.............. ยูนิต (คำสั่งเดิม 14 U)</strong>
+            </li>
+            <li class="rx-item">
+              <span>☀️ ก่อนมื้อเที่ยง:</span>
+              <strong>.............. ยูนิต (คำสั่งเดิม 0 U)</strong>
+            </li>
+            <li class="rx-item">
+              <span>🌇 ก่อนมื้อเย็น:</span>
+              <strong>.............. ยูนิต (คำสั่งเดิม 8 U)</strong>
+            </li>
+            <li class="rx-item" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
+              <span>🎯 เป้าหมายน้ำตาล:</span>
+              <strong style="color: #15803d;">70 - 140 mg/dL</strong>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 2. ขั้นตอนการบันทึกประจำวัน -->
+        <div class="card">
+          <div class="card-head">
+            <span>📱 2. ขั้นตอนการบันทึกประจำวัน (10 วินาที)</span>
+          </div>
+          <ul class="step-list">
+            <li>
+              <span class="step-num">1</span>
+              <div>กรอก <strong>ค่าน้ำตาลที่เจาะได้จริง</strong> ลงในช่อง 🩸</div>
+            </li>
+            <li>
+              <span class="step-num">2</span>
+              <div>แตะเลือก <strong>มื้ออาหาร</strong> (เช้า / เที่ยง / เย็น) ระบบจะดึงค่ายาตามสั่งหมอมาให้อัตโนมัติ</div>
+            </li>
+            <li>
+              <span class="step-num">3</span>
+              <div>กรอกค่ายาที่ฉีดจริง และกด <strong>"⚡ บันทึกจังหวะเวลานี้"</strong></div>
+            </li>
+            <li>
+              <span class="step-num">4</span>
+              <div>เมื่อถึงวันพบแพทย์: กดไอคอน <strong>📥 ส่งออก CSV</strong> เพื่อส่งรายงานให้แพทย์ตรวจ</div>
+            </li>
+          </ul>
         </div>
       </div>
-      <div class="box-card">
-        <div class="section-header">2. ขั้นตอนการบันทึกประจำวัน (10 วินาที)</div>
-        <div style="font-size: 10.5px; padding: 2px 0;">
-          1. <strong>กรอกค่าน้ำตาล</strong> ที่เจาะได้ลงช่อง 🩸<br>
-          2. <strong>แตะเลือกมื้อเวลา</strong> (ระบบจะดึงค่ายาหมอสั่งให้อัตโนมัติ)<br>
-          3. <strong>แตะเลือกอาการ</strong> แล้วกด ⚡ <strong>"บันทึกจังหวะเวลานี้"</strong><br>
-          4. <strong>วันพบแพทย์:</strong> กดปุ่ม 📥 เพื่อดาวน์โหลดไฟล์ยื่นให้แพทย์ตรวจ
+
+      <!-- 3. เกณฑ์แปลผลค่าน้ำตาลและกราฟ -->
+      <section class="table-section">
+        <div class="section-title">
+          <span>📊 3. เกณฑ์แปลผลระดับน้ำตาล & การดูแลตนเอง</span>
         </div>
-      </div>
+        <table class="metric-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">ระดับน้ำตาล (mg/dL)</th>
+              <th style="width: 20%;">สีหน้าปัด & กราฟ</th>
+              <th style="width: 22%;">สถานะ</th>
+              <th>คำแนะนำการดูแลตนเอง</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>ต่ำกว่า 70</strong></td>
+              <td><span class="badge-zone zone-low">🔵 ฟ้า (ต่ำ)</span></td>
+              <td style="color: #0369a1; font-weight: 600;">น้ำตาลต่ำ (อันตราย)</td>
+              <td>ปฏิบัติตาม <strong>"กฎ 15-15"</strong> ทันที ห้ามรอช้า</td>
+            </tr>
+            <tr>
+              <td><strong>70 - 140</strong></td>
+              <td><span class="badge-zone zone-normal">🟢 เขียว (ปกติ)</span></td>
+              <td style="color: #15803d; font-weight: 600;">อยู่ในเกณฑ์ดีเยี่ยม</td>
+              <td>ปฏิบัติตัวและฉีดยาตามขนาดเดิมอย่างต่อเนื่อง</td>
+            </tr>
+            <tr>
+              <td><strong>มากกว่า 140</strong></td>
+              <td><span class="badge-zone zone-high">🔴 แดง (สูง)</span></td>
+              <td style="color: #b91c1c; font-weight: 600;">สูงเกินเกณฑ์</td>
+              <td>ดื่มน้ำเปล่าเพิ่ม เลี่ยงของหวานและแป้ง สังเกตอาการ</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 4. ขั้นตอนแก้น้ำตาลต่ำฉุกเฉิน (กฎ 15 - 15) -->
+      <section class="emergency-box">
+        <div class="emergency-title">
+          <span>🚨 4. ขั้นตอนแก้น้ำตาลต่ำฉุกเฉิน "กฎ 15 - 15" (เมื่อน้ำตาล < 70 หรือมีอาการหิวสั่น ใจสั่น หน้ามืด)</span>
+        </div>
+        <div class="emergency-grid">
+          <div class="emergency-step">
+            <strong>ขั้นที่ 1: กินคาร์โบไฮเดรต 15 กรัมทันที</strong>
+            น้ำส้มหรือน้ำหวาน <strong>ครึ่งแก้ว</strong> (120 มล.) หรือ น้ำอัดลมปกติครึ่งกระป๋อง หรือ ลูกอม 3 เม็ด
+          </div>
+          <div class="emergency-step">
+            <strong>ขั้นที่ 2: นั่งพักนิ่งๆ 15 นาที</strong>
+            ห้ามลุกเดินหรือออกแรงทำงานเด็ดขาด รอให้น้ำตาลซึมเข้าสู่กระแสเลือด
+          </div>
+          <div class="emergency-step">
+            <strong>ขั้นที่ 3: เจาะตรวจซ้ำ</strong>
+            ถ้าน้ำตาลยัง < 70 ให้ทำซ้ำข้อ 1 อีก 1 รอบ | หาก > 70 แล้ว ให้ทานอาหารมื้อหลักตามปกติ
+          </div>
+        </div>
+        <div style="font-size: 10.5px; color: #9f1239; margin-top: 4px; font-weight: 600;">
+          * หากทำซ้ำ 2 รอบแล้วอาการไม่ดีขึ้น หรือผู้ป่วยซึมลง รีบนำส่ง รพ. ทันที (ห้ามกรอกน้ำตาลหรือน้ำเข้าปากในคนหมดสติ)
+        </div>
+      </section>
+
+      <!-- 5. คำแนะนำอาหารจานสุขภาพ (สูตร 2:1:1) -->
+      <section class="plate-card">
+        <div class="section-title">
+          <span>🥗 5. คำแนะนำอาหารคุมน้ำตาลให้อยู่หมัด (สูตรจาน 2:1:1)</span>
+        </div>
+        <div class="plate-grid">
+          <div class="plate-col">
+            <h4 class="color-veg">🥬 ผัก 2 ส่วน (ครึ่งจาน)</h4>
+            เน้นผักใบเขียว กะหล่ำ แตงกวา บวบ เห็ด (ไฟเบอร์ช่วยชะลอน้ำตาลไม่ให้พุ่งสูง)
+          </div>
+          <div class="plate-col">
+            <h4 class="color-protein">🥩 โปรตีน 1 ส่วน (1/4 จาน)</h4>
+            เนื้อปลา อกไก่ ไข่ไก่ เต้าหู้ขาว (ช่วยให้อิ่มนาน ไม่กระตุ้นน้ำตาล)
+          </div>
+          <div class="plate-col">
+            <h4 class="color-carb">🍚 คาร์บ 1 ส่วน (1/4 จาน)</h4>
+            ข้าวกล้อง ข้าวสวย 1-2 ทัพพี (เลี่ยงน้ำหวาน ขนมปังขาว น้ำอัดลม)
+          </div>
+        </div>
+      </section>
     </div>
 
-    <!-- Section 3: Status & Rule 15-15 -->
-    <div class="section-header">3. เกณฑ์แปลผลระดับน้ำตาล & 🚨 ขั้นตอนแก้น้ำตาลตกฉุกเฉิน (กฎ 15 - 15)</div>
-    <table class="status-table">
-      <thead>
-        <tr>
-          <th style="width: 25%;">ระดับน้ำตาล (mg/dL)</th>
-          <th style="width: 15%;">สีหน้าปัด</th>
-          <th style="width: 22%;">สถานะ</th>
-          <th>คำแนะนำการดูแลตนเอง</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>ต่ำกว่า 70</strong></td>
-          <td style="color: #0284c7; font-weight: bold;">🔵 ฟ้า (ซ้าย)</td>
-          <td style="color: #0284c7; font-weight: bold;">น้ำตาลต่ำ (อันตราย)</td>
-          <td><strong>ปฏิบัติตาม "กฎ 15-15" ทันที (ห้ามปล่อยทิ้งไว้)</strong></td>
-        </tr>
-        <tr>
-          <td><strong>70 – 140</strong></td>
-          <td style="color: #16a34a; font-weight: bold;">🟢 เขียว (กลาง)</td>
-          <td>อยู่ในเกณฑ์ดีเยี่ยม</td>
-          <td>ปฏิบัติตัวและฉีดยาตามขนาดเดิมอย่างต่อเนื่อง</td>
-        </tr>
-        <tr>
-          <td><strong>มากกว่า 140</strong></td>
-          <td style="color: #dc2626; font-weight: bold;">🔴 แดง (ขวา)</td>
-          <td>สูงเกินเกณฑ์</td>
-          <td>ดื่มน้ำเปล่าเพิ่ม เลี่ยงของหวานและแป้ง สังเกตอาการ</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="rule-15-box">
-      <strong style="color: #1d4ed8;">🆘 ขั้นตอนแก้น้ำตาลต่ำฉุกเฉินด้วย "กฎ 15 - 15" (เมื่อน้ำตาล < 70 หรือมีอาการหิวสั่น ใจสั่น เหงื่อแตก):</strong><br>
-      <strong>1. ทานคาร์โบไฮเดรตเร็ว 15 กรัม:</strong> น้ำส้ม/น้ำหวาน <strong>ครึ่งแก้ว</strong> (120 มล.) หรือ น้ำอัดลมปกติ <strong>ครึ่งกระป๋อง</strong> หรือ ลูกอม <strong>3 เม็ด</strong><br>
-      <strong>2. นั่งพักนิ่งๆ 15 นาที:</strong> ห้ามลุกเดินหรือออกแรงทำงาน<br>
-      <strong>3. เจาะตรวจซ้ำ:</strong> ถ้าน้ำตาลยัง <strong>< 70</strong> ให้ทานซ้ำข้อ 1 อีก 1 รอบ | หาก <strong>> 70</strong> ให้ทานของว่างเบาๆ (เช่น แครกเกอร์ 2 แผ่น) รอถึงมื้อหลัก<br>
-      <em>* หากทำซ้ำ 2 รอบแล้วอาการไม่ดีขึ้น หรือผู้ป่วยซึมลง รีบนำส่ง รพ. ทันที (ห้ามกรอกน้ำตาลหรือน้ำในคนหมดสติ)</em>
-    </div>
-
-    <!-- Section 4: Food Plate 2:1:1 -->
-    <div class="section-header">4. คำแนะนำอาหารลดคาร์บ คุมน้ำตาลให้อยู่หมัด (สูตรจาน 2:1:1)</div>
-    <div class="plate-grid">
-      <div class="plate-item" style="background: #dcfce7; border: 1px solid #86efac;">
-        <strong>🥦 ผัก 2 ส่วน (ครึ่งจาน):</strong><br>
-        เน้นผักใบเขียว, กะหล่ำ, แตงกวา, บวบ, เห็ด (ไฟเบอร์ช่วยชะลอน้ำตาล)
-      </div>
-      <div class="plate-item" style="background: #fef9c3; border: 1px solid #fde047;">
-        <strong>🍗 โปรตีน 1 ส่วน (1/4 จาน):</strong><br>
-        เนื้อปลา, อกไก่, ไข่ไก่, เต้าหู้ขาว (ช่วยให้อิ่มนาน ไม่กระตุ้นน้ำตาล)
-      </div>
-      <div class="plate-item" style="background: #fee2e2; border: 1px solid #fca5a5;">
-        <strong>🍚 คาร์บ 1 ส่วน (1/4 จาน):</strong><br>
-        ข้าวกล้อง, ไรซ์เบอร์รี, โฮลวีต ไม่เกิน 1-2 ทัพพี <em>(เลี่ยงน้ำหวาน, ขนม)</em>
-      </div>
-    </div>
-
-    <!-- Section 5: Appointment & Signature -->
-    <table class="sign-table">
-      <tr>
-        <td style="width: 50%;">
-          <strong>🗓️ ข้อมูลนัดตรวจแพทย์ครั้งถัดไป:</strong><br>
-          • <strong>วันนัด:</strong> ..... / ..... / 25.... &nbsp;&nbsp; <strong>เวลา:</strong> ............ น.<br>
-          • <strong>ห้องตรวจ/แผนก:</strong> ....................................................<br>
-          • [ ] อดอาหารและน้ำหลังเที่ยงคืน &nbsp; [ ] กดดาวน์โหลดไฟล์ CSV (📥)
-        </td>
-        <td style="width: 50%;">
-          <strong>✍️ ลายมือชื่อเจ้าหน้าที่ผู้ให้คำแนะนำ:</strong><br><br>
-          ลงชื่อ: ..........................................................................<br>
-          (..........................................................................)<br>
-          ตำแหน่ง: [ ] แพทย์ &nbsp;&nbsp; [ ] พยาบาลเบาหวาน &nbsp;&nbsp; วันที่: ...../...../25....
-        </td>
-      </tr>
-    </table>
-
-    <div class="footer-note">
-      ⚠️ <strong>คำเตือนทางการแพทย์:</strong> ห้ามปรับขนาดยาอินซูลินเองโดยไม่ได้รับคำแนะนำจากแพทย์ การปฏิบัติตามกฎ 15-15 เป็นเพียงการปฐมพยาบาลเบื้องต้น หากมีอาการผิดปกติบ่อยครั้งโปรดแจ้งแพทย์ในวันนัดตรวจ
-    </div>
+    <!-- ส่วนท้ายกระดาษ -->
+    <footer class="guide-footer">
+      <div>ระบบบันทึกสุขภาพ Metabolic Cockpit (Offline-First PWA)</div>
+      <div>พิมพ์เอกสารเพื่อการศึกษาและดูแลตนเองของผู้ป่วยเบาหวาน</div>
+    </footer>
 
   </div>
 
