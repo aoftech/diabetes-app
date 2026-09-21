@@ -34,12 +34,19 @@ const tirTarget = document.getElementById('tir-target');
 const tirHigh = document.getElementById('tir-high');
 const tirPercent = document.getElementById('tir-percent');
 
+// Chart elements
+const svgGrid = document.getElementById('svg-grid');
+const svgArea = document.getElementById('svg-area');
+const svgLine = document.getElementById('svg-line');
+const svgDots = document.getElementById('svg-dots');
+const trendSummary = document.getElementById('trend-summary');
+
 const logList = document.getElementById('log-list');
 const logCounter = document.getElementById('log-counter');
 const exportCsvBtn = document.getElementById('export-csv-btn');
 
 // ==========================================
-// 2. ข้อมูลตั้งต้น (STATE)
+// 2. ข้อมูลตั้งต้น (STATE) - รักษาข้อมูลเดิมปลอดภัย
 // ==========================================
 let rxConfig = {
   morningDose: 14,
@@ -76,26 +83,17 @@ function saveSettings() {
   calculateExpectedDose();
 }
 
+// โหลดข้อมูลจริงที่มีอยู่ในเครื่องผู้ใช้ (ข้อมูลเดิมจะไม่หาย)
 function loadRecords() {
   const saved = localStorage.getItem('metabolic_logs_v2');
   if (saved) {
-    try { records = JSON.parse(saved); } catch (e) { records = []; }
+    try { 
+      records = JSON.parse(saved); 
+    } catch (e) { 
+      records = []; 
+    }
   } else {
-    // ข้อมูลเริ่มต้นจำลอง
-    records = [
-      {
-        id: Date.now() - 3600000 * 8,
-        timestamp: new Date(Date.now() - 3600000 * 8).toISOString(),
-        glucose: 118,
-        mealTime: 'morning',
-        actualInsulin: 14,
-        prescribedInsulin: 14,
-        carbs: 35,
-        symptom: 'สดชื่น',
-        foodNote: 'ข้าวต้มปลา'
-      }
-    ];
-    saveRecords();
+    records = [];
   }
 }
 
@@ -178,7 +176,7 @@ function calculateExpectedDose() {
 }
 
 // ==========================================
-// 4. เกจและ TIME IN RANGE
+// 4. เกจ, TIR และ กราฟเส้น SVG TREND
 // ==========================================
 function updateGauge(glucose) {
   if (!glucose || isNaN(glucose)) {
@@ -256,6 +254,116 @@ function updateTIR() {
   tirPercent.textContent = `${targetP}% ในเกณฑ์ (70-140)`;
 }
 
+// วาดกราฟเส้น SVG TREND บนพื้นหลังขาว
+function renderTrendChart() {
+  if (!svgGrid || !svgArea || !svgLine || !svgDots) return;
+
+  svgGrid.innerHTML = '';
+  svgDots.innerHTML = '';
+
+  if (records.length === 0) {
+    svgArea.setAttribute('d', '');
+    svgLine.setAttribute('d', '');
+    trendSummary.textContent = 'ยังไม่มีข้อมูล';
+    return;
+  }
+
+  // ดึง 10 รายการล่าสุด และเรียงจาก อดีต -> ปัจจุบัน (ซ้ายไปขวา)
+  const recentRecords = records.slice(0, 10).reverse();
+  trendSummary.textContent = `${recentRecords.length} รายการล่าสุด`;
+
+  const w = 400;
+  const h = 150;
+  const paddingX = 35;
+  const paddingTop = 25;
+  const paddingBottom = 25;
+  const chartH = h - paddingTop - paddingBottom;
+  const chartW = w - (paddingX * 2);
+
+  const minG = 50;
+  const maxG = 250;
+
+  const getY = (val) => {
+    const clamped = Math.min(Math.max(val, minG), maxG);
+    const p = (clamped - minG) / (maxG - minG);
+    return (paddingTop + chartH) - (p * chartH);
+  };
+
+  // 1. วาดแถบเป้าหมายสีเขียว (Target Zone 70 - 140)
+  const y140 = getY(140);
+  const y70 = getY(70);
+  const zoneH = Math.abs(y70 - y140);
+
+  const targetZoneRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  targetZoneRect.setAttribute('x', '0');
+  targetZoneRect.setAttribute('y', y140);
+  targetZoneRect.setAttribute('width', w);
+  targetZoneRect.setAttribute('height', zoneH);
+  targetZoneRect.setAttribute('fill', 'rgba(34, 197, 94, 0.1)');
+  svgGrid.appendChild(targetZoneRect);
+
+  // เส้นประขอบบน 140
+  const line140 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line140.setAttribute('x1', '0'); line140.setAttribute('y1', y140);
+  line140.setAttribute('x2', w); line140.setAttribute('y2', y140);
+  line140.setAttribute('stroke', 'rgba(22, 163, 74, 0.45)');
+  line140.setAttribute('stroke-dasharray', '4 4');
+  svgGrid.appendChild(line140);
+
+  // เส้นประขอบล่าง 70
+  const line70 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line70.setAttribute('x1', '0'); line70.setAttribute('y1', y70);
+  line70.setAttribute('x2', w); line70.setAttribute('y2', y70);
+  line70.setAttribute('stroke', 'rgba(2, 132, 199, 0.45)');
+  line70.setAttribute('stroke-dasharray', '4 4');
+  svgGrid.appendChild(line70);
+
+  // 2. คำนวณพิกัดจุด (X, Y)
+  const stepX = recentRecords.length > 1 ? chartW / (recentRecords.length - 1) : chartW / 2;
+  const points = recentRecords.map((r, i) => {
+    const x = recentRecords.length === 1 ? paddingX + (chartW / 2) : paddingX + (i * stepX);
+    const y = getY(r.glucose);
+    return { x, y, val: r.glucose, raw: r };
+  });
+
+  // สร้าง Path เส้นกราฟ
+  let lineD = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    lineD += ` L ${points[i].x} ${points[i].y}`;
+  }
+  svgLine.setAttribute('d', lineD);
+
+  // สร้าง Path พื้นที่แรเงาใต้กราฟ
+  const areaD = `${lineD} L ${points[points.length - 1].x} ${h} L ${points[0].x} ${h} Z`;
+  svgArea.setAttribute('d', areaD);
+
+  // 3. วาดจุดกลมและตัวเลขค่าน้ำตาล
+  points.forEach((p) => {
+    let dotColor = '#16a34a';
+    if (p.val < 70) dotColor = '#0284c7';
+    else if (p.val > 140) dotColor = '#dc2626';
+
+    // วงกลมจุด
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', p.x);
+    circle.setAttribute('cy', p.y);
+    circle.setAttribute('r', '4.5');
+    circle.setAttribute('fill', dotColor);
+    circle.setAttribute('stroke', '#ffffff');
+    circle.setAttribute('stroke-width', '2');
+    circle.setAttribute('class', 'chart-dot');
+    svgDots.appendChild(circle);
+
+    // ตัวเลขน้ำตาลกำกับเหนือจุด (ตัวหนังสือดำ คมชัด)
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', p.x);
+    text.setAttribute('y', p.y - 8);
+    text.setAttribute('class', 'chart-label');
+    text.textContent = p.val;
+    svgDots.appendChild(text);
+  });
+}
+
 // ==========================================
 // 5. ไทม์ไลน์และบันทึกข้อมูล
 // ==========================================
@@ -264,7 +372,7 @@ function renderTimeline() {
   logCounter.textContent = `${records.length} รายการ`;
 
   if (records.length === 0) {
-    logList.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-muted); font-size: 0.85rem;">ยังไม่มีบันทึกข้อมูล</div>`;
+    logList.innerHTML = `<div style="text-align:center; padding: 24px; color: var(--text-muted); font-size: 0.9rem;">ยังไม่มีบันทึกข้อมูล ลองเริ่มบันทึกครั้งแรกด้านบนได้เลยครับ</div>`;
     return;
   }
 
@@ -325,6 +433,7 @@ function renderTimeline() {
 function renderAll() {
   renderTimeline();
   updateTIR();
+  renderTrendChart();
   if (records.length > 0) {
     updateGauge(records[0].glucose);
   } else {
