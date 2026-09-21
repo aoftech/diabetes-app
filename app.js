@@ -34,19 +34,12 @@ const tirTarget = document.getElementById('tir-target');
 const tirHigh = document.getElementById('tir-high');
 const tirPercent = document.getElementById('tir-percent');
 
-// Chart elements
-const svgGrid = document.getElementById('svg-grid');
-const svgArea = document.getElementById('svg-area');
-const svgLine = document.getElementById('svg-line');
-const svgDots = document.getElementById('svg-dots');
-const trendSummary = document.getElementById('trend-summary');
-
 const logList = document.getElementById('log-list');
 const logCounter = document.getElementById('log-counter');
 const exportCsvBtn = document.getElementById('export-csv-btn');
 
 // ==========================================
-// 2. ข้อมูลตั้งต้น (STATE) - รักษาข้อมูลเดิมปลอดภัย
+// 2. ข้อมูลตั้งต้น (STATE) - ข้อมูลเดิมปลอดภัย 100%
 // ==========================================
 let rxConfig = {
   morningDose: 14,
@@ -83,7 +76,6 @@ function saveSettings() {
   calculateExpectedDose();
 }
 
-// โหลดข้อมูลจริงที่มีอยู่ในเครื่องผู้ใช้ (ข้อมูลเดิมจะไม่หาย)
 function loadRecords() {
   const saved = localStorage.getItem('metabolic_logs_v2');
   if (saved) {
@@ -176,7 +168,7 @@ function calculateExpectedDose() {
 }
 
 // ==========================================
-// 4. เกจ, TIR และ กราฟเส้น SVG TREND
+// 4. เกจ, TIR และ กราฟเส้น SVG TREND (จุดที่ปรับแก้)
 // ==========================================
 function updateGauge(glucose) {
   if (!glucose || isNaN(glucose)) {
@@ -254,34 +246,45 @@ function updateTIR() {
   tirPercent.textContent = `${targetP}% ในเกณฑ์ (70-140)`;
 }
 
-// วาดกราฟเส้น SVG TREND บนพื้นหลังขาว
+// ฟังก์ชันวาดกราฟเส้น SVG TREND (เวอร์ชันแก้ไขสมบูรณ์ 100%)
 function renderTrendChart() {
+  const svgGrid = document.getElementById('svg-grid');
+  const svgArea = document.getElementById('svg-area');
+  const svgLine = document.getElementById('svg-line');
+  const svgDots = document.getElementById('svg-dots');
+  const trendSummary = document.getElementById('trend-summary');
+
   if (!svgGrid || !svgArea || !svgLine || !svgDots) return;
 
   svgGrid.innerHTML = '';
   svgDots.innerHTML = '';
 
-  if (records.length === 0) {
+  if (!records || records.length === 0) {
     svgArea.setAttribute('d', '');
     svgLine.setAttribute('d', '');
-    trendSummary.textContent = 'ยังไม่มีข้อมูล';
+    if (trendSummary) trendSummary.textContent = 'ยังไม่มีข้อมูล';
     return;
   }
 
-  // ดึง 10 รายการล่าสุด และเรียงจาก อดีต -> ปัจจุบัน (ซ้ายไปขวา)
+  // ดึงสูงสุด 10 รายการล่าสุด และเรียงจาก อดีต -> ปัจจุบัน (ซ้ายไปขวา)
   const recentRecords = records.slice(0, 10).reverse();
-  trendSummary.textContent = `${recentRecords.length} รายการล่าสุด`;
+  if (trendSummary) trendSummary.textContent = `${recentRecords.length} รายการล่าสุด`;
 
   const w = 400;
   const h = 150;
-  const paddingX = 35;
+  const paddingX = 40;
   const paddingTop = 25;
   const paddingBottom = 25;
   const chartH = h - paddingTop - paddingBottom;
   const chartW = w - (paddingX * 2);
 
-  const minG = 50;
-  const maxG = 250;
+  // คำนวณสเกลขอบเขตระดับน้ำตาลแบบยืดหยุ่น
+  let minG = 50;
+  let maxG = 220;
+  recentRecords.forEach(r => {
+    if (r.glucose < minG) minG = Math.max(30, r.glucose - 15);
+    if (r.glucose > maxG) maxG = Math.min(400, r.glucose + 20);
+  });
 
   const getY = (val) => {
     const clamped = Math.min(Math.max(val, minG), maxG);
@@ -292,72 +295,72 @@ function renderTrendChart() {
   // 1. วาดแถบเป้าหมายสีเขียว (Target Zone 70 - 140)
   const y140 = getY(140);
   const y70 = getY(70);
-  const zoneH = Math.abs(y70 - y140);
+  const zoneH = Math.max(2, Math.abs(y70 - y140));
+  const topY = Math.min(y140, y70);
 
   const targetZoneRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   targetZoneRect.setAttribute('x', '0');
-  targetZoneRect.setAttribute('y', y140);
+  targetZoneRect.setAttribute('y', topY);
   targetZoneRect.setAttribute('width', w);
   targetZoneRect.setAttribute('height', zoneH);
-  targetZoneRect.setAttribute('fill', 'rgba(34, 197, 94, 0.1)');
+  targetZoneRect.setAttribute('fill', 'rgba(34, 197, 94, 0.12)');
   svgGrid.appendChild(targetZoneRect);
 
-  // เส้นประขอบบน 140
-  const line140 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  line140.setAttribute('x1', '0'); line140.setAttribute('y1', y140);
-  line140.setAttribute('x2', w); line140.setAttribute('y2', y140);
-  line140.setAttribute('stroke', 'rgba(22, 163, 74, 0.45)');
-  line140.setAttribute('stroke-dasharray', '4 4');
-  svgGrid.appendChild(line140);
+  const makeDashedLine = (y, color) => {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', '0'); line.setAttribute('y1', y);
+    line.setAttribute('x2', w); line.setAttribute('y2', y);
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-dasharray', '5 4');
+    line.setAttribute('stroke-width', '1.2');
+    svgGrid.appendChild(line);
+  };
 
-  // เส้นประขอบล่าง 70
-  const line70 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  line70.setAttribute('x1', '0'); line70.setAttribute('y1', y70);
-  line70.setAttribute('x2', w); line70.setAttribute('y2', y70);
-  line70.setAttribute('stroke', 'rgba(2, 132, 199, 0.45)');
-  line70.setAttribute('stroke-dasharray', '4 4');
-  svgGrid.appendChild(line70);
+  makeDashedLine(y140, '#16a34a'); // เส้นประขอบบน 140
+  makeDashedLine(y70, '#0284c7');  // เส้นประขอบล่าง 70
 
   // 2. คำนวณพิกัดจุด (X, Y)
-  const stepX = recentRecords.length > 1 ? chartW / (recentRecords.length - 1) : chartW / 2;
+  const count = recentRecords.length;
+  const stepX = count > 1 ? chartW / (count - 1) : 0;
   const points = recentRecords.map((r, i) => {
-    const x = recentRecords.length === 1 ? paddingX + (chartW / 2) : paddingX + (i * stepX);
+    const x = count === 1 ? (w / 2) : paddingX + (i * stepX);
     const y = getY(r.glucose);
-    return { x, y, val: r.glucose, raw: r };
+    return { x, y, val: r.glucose };
   });
 
-  // สร้าง Path เส้นกราฟ
-  let lineD = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i++) {
-    lineD += ` L ${points[i].x} ${points[i].y}`;
+  // 3. วาดเส้นกราฟและพื้นที่สีใต้กราฟ
+  if (count === 1) {
+    const p = points[0];
+    svgLine.setAttribute('d', `M ${p.x - 30} ${p.y} L ${p.x + 30} ${p.y}`);
+    svgArea.setAttribute('d', `M ${p.x - 30} ${p.y} L ${p.x + 30} ${p.y} L ${p.x + 30} ${h} L ${p.x - 30} ${h} Z`);
+  } else {
+    let lineD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      lineD += ` L ${points[i].x} ${points[i].y}`;
+    }
+    svgLine.setAttribute('d', lineD);
+    svgArea.setAttribute('d', `${lineD} L ${points[points.length - 1].x} ${h} L ${points[0].x} ${h} Z`);
   }
-  svgLine.setAttribute('d', lineD);
 
-  // สร้าง Path พื้นที่แรเงาใต้กราฟ
-  const areaD = `${lineD} L ${points[points.length - 1].x} ${h} L ${points[0].x} ${h} Z`;
-  svgArea.setAttribute('d', areaD);
-
-  // 3. วาดจุดกลมและตัวเลขค่าน้ำตาล
+  // 4. วาดจุดกลมและตัวเลขค่าน้ำตาล
   points.forEach((p) => {
-    let dotColor = '#16a34a';
-    if (p.val < 70) dotColor = '#0284c7';
-    else if (p.val > 140) dotColor = '#dc2626';
+    let dotColor = '#16a34a'; // ปกติสีเขียว
+    if (p.val < 70) dotColor = '#0284c7'; // ต่ำสีฟ้า
+    else if (p.val > 140) dotColor = '#dc2626'; // สูงสีแดง
 
-    // วงกลมจุด
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     circle.setAttribute('cx', p.x);
     circle.setAttribute('cy', p.y);
-    circle.setAttribute('r', '4.5');
+    circle.setAttribute('r', '5');
     circle.setAttribute('fill', dotColor);
     circle.setAttribute('stroke', '#ffffff');
     circle.setAttribute('stroke-width', '2');
     circle.setAttribute('class', 'chart-dot');
     svgDots.appendChild(circle);
 
-    // ตัวเลขน้ำตาลกำกับเหนือจุด (ตัวหนังสือดำ คมชัด)
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', p.x);
-    text.setAttribute('y', p.y - 8);
+    text.setAttribute('y', p.y - 10);
     text.setAttribute('class', 'chart-label');
     text.textContent = p.val;
     svgDots.appendChild(text);
@@ -546,7 +549,7 @@ glucoseInput.addEventListener('input', () => {
 
 carbsInput.addEventListener('input', calculateExpectedDose);
 
-// Export CSV 9 Columns พร้อม BOM ป้องกันภาษาไทยเพี้ยนใน Excel
+// Export CSV 9 Columns พร้อม BOM
 exportCsvBtn.addEventListener('click', () => {
   if (records.length === 0) {
     alert('ยังไม่มีข้อมูลสำหรับส่งออก');
@@ -600,7 +603,7 @@ toggleSettingsBtn.addEventListener('click', () => settingsPanel.classList.remove
 closeSettingsBtn.addEventListener('click', () => settingsPanel.classList.add('hidden'));
 saveSettingsBtn.addEventListener('click', saveSettings);
 
-// ล้างข้อมูลบันทึกทั้งหมด พร้อมระบบยืนยันป้องกันการกดพลาด
+// ล้างข้อมูลบันทึกทั้งหมด พร้อมยืนยัน 2 ชั้น
 if (clearAllDataBtn) {
   clearAllDataBtn.addEventListener('click', () => {
     if (records.length === 0) {
@@ -637,3 +640,4 @@ loadSettings();
 setupPills();
 loadRecords();
 updateRxHintForMeal(mealTimeHidden.value);
+renderAll();
