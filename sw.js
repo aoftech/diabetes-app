@@ -1,4 +1,4 @@
-const CACHE_NAME = 'metabolic-cockpit-v3';
+const CACHE_NAME = 'metabolic-cockpit-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -7,13 +7,13 @@ const ASSETS_TO_CACHE = [
   './patient_guide.html',
   './manifest.json',
   './icon-512.png',
-  'https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Sarabun:wght@300;400;600;700&display=swap'
+  'https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('Caching complete offline cockpit assets');
+      console.log('Caching white medical cockpit assets v4');
       return cache.addAll(ASSETS_TO_CACHE);
     }).then(() => self.skipWaiting())
   );
