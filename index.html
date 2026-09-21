@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Metabolic Cockpit - Diabetes Tracker</title>
   
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#ffffff">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon-512.png" type="image/png">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -66,13 +66,13 @@
         
         <button type="button" id="save-settings-btn" class="primary-btn mt-3">💾 บันทึกแผนคำสั่งแพทย์</button>
         
-        <hr style="border: none; border-top: 1px dashed rgba(239, 68, 68, 0.3); margin: 16px 0 12px 0;">
+        <hr style="border: none; border-top: 1px dashed #cbd5e1; margin: 18px 0 14px 0;">
         
         <div style="text-align: center;">
-          <button type="button" id="clear-all-data-btn" class="danger-btn" style="width: 100%; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #f87171; padding: 10px; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
+          <button type="button" id="clear-all-data-btn" class="danger-btn" style="width: 100%; background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 11px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 0.88rem;">
             🗑️ ล้างข้อมูลบันทึกทั้งหมด (Clear All Data)
           </button>
-          <small style="font-size: 0.68rem; color: #94a3b8; display: block; margin-top: 5px;">*ข้อมูลประวัติจะถูกลบทั้งหมด แต่คำสั่งแพทย์จะยังคงอยู่</small>
+          <small style="font-size: 0.72rem; color: #64748b; display: block; margin-top: 6px;">*ข้อมูลประวัติจะถูกลบทั้งหมด แต่คำสั่งแพทย์จะยังคงอยู่</small>
         </div>
       </div>
     </div>
@@ -86,8 +86,8 @@
         <svg viewBox="0 0 200 115" class="semicircle-gauge">
           <path class="gauge-track" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke-width="16" stroke-linecap="round"/>
           <path id="gauge-fill" class="gauge-progress" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke-width="16" stroke-linecap="round"/>
-          <line id="gauge-needle" x1="100" y1="100" x2="100" y2="28" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
-          <circle cx="100" cy="100" r="7" fill="#38bdf8"/>
+          <line id="gauge-needle" x1="100" y1="100" x2="100" y2="28" stroke="#0f172a" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="100" cy="100" r="7" fill="#0284c7"/>
         </svg>
         
         <div class="gauge-value-display">
@@ -108,6 +108,31 @@
           <div id="tir-target" class="tir-seg seg-target" style="width: 0%"></div>
           <div id="tir-high" class="tir-seg seg-high" style="width: 0%"></div>
         </div>
+      </div>
+    </section>
+
+    <!-- กราฟเส้นแนวโน้มระดับน้ำตาล (Glucose Trend Radar) -->
+    <section class="trend-chart-card">
+      <div class="trend-header">
+        <div class="trend-title">
+          <span>📈 แนวโน้มน้ำตาล (Trend Radar)</span>
+          <small id="trend-summary">10 รายการล่าสุด</small>
+        </div>
+        <div class="target-badge">🎯 เป้าหมาย 70-140</div>
+      </div>
+      <div class="chart-container">
+        <svg id="trend-svg" viewBox="0 0 400 150" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="trendGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#0284c7" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="#0284c7" stop-opacity="0.0"/>
+            </linearGradient>
+          </defs>
+          <g id="svg-grid"></g>
+          <path id="svg-area" d="" fill="url(#trendGradient)"/>
+          <path id="svg-line" d="" fill="none" stroke="#0284c7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <g id="svg-dots"></g>
+        </svg>
       </div>
     </section>
 
