@@ -25,7 +25,6 @@
       <h1 class="brand-title">METABOLIC COCKPIT</h1>
     </div>
     <div class="header-actions">
-      <!-- ปุ่มเปิดคู่มือพร้อมพิมพ์ A4 -->
       <a href="patient_guide.html" target="_blank" class="icon-round-btn" title="คู่มือผู้ป่วยและการพิมพ์" style="text-decoration: none;">📄</a>
       <button type="button" id="toggle-settings-btn" class="icon-round-btn" title="ตั้งค่าสูตรแพทย์">⚙️</button>
       <button type="button" id="export-csv-btn" class="icon-round-btn" title="ส่งออก CSV">📥</button>
@@ -45,6 +44,10 @@
           <div class="field-item">
             <label>🌅 ขนาดยาเช้าตามสั่ง (U)</label>
             <input type="number" id="setting-morning-dose" min="0" step="0.5" placeholder="เช่น 14">
+          </div>
+          <div class="field-item">
+            <label>☀️ ขนาดยาเที่ยงตามสั่ง (U)</label>
+            <input type="number" id="setting-noon-dose" min="0" step="0.5" placeholder="เช่น 0">
           </div>
           <div class="field-item">
             <label>🌇 ขนาดยาเย็นตามสั่ง (U)</label>
@@ -109,6 +112,15 @@
           <div id="tir-high" class="tir-seg seg-high" style="width: 0%"></div>
         </div>
       </div>
+
+      <!-- ข้อมูลสถิติน้ำตาลตกในรอบเดือน (Hypo 30 Days Alert) -->
+      <div id="hypo-alert-card" style="margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.1rem;">⚠️</span>
+          <span style="font-size: 0.8rem; font-weight: 600; color: #334155;">น้ำตาลตก (< 70 mg/dL) ในรอบเดือน:</span>
+        </div>
+        <span id="hypo-month-count" style="font-family: var(--font-tech); font-weight: 700; font-size: 0.95rem; color: #16a34a; background: #ffffff; padding: 2px 10px; border-radius: 20px; border: 1px solid #cbd5e1;">0 ครั้ง</span>
+      </div>
     </section>
 
     <!-- กราฟเส้นแนวโน้มระดับน้ำตาล (Glucose Trend Radar) -->
@@ -143,14 +155,13 @@
         <input type="hidden" id="meal-time" value="morning">
         <input type="hidden" id="symptom-val" value="สดชื่น">
 
-        <!-- Pills: Meal Selection -->
+        <!-- Pills: Meal Selection (ตัดหลังอาหารและก่อนนอนออก เพิ่มมื้อเที่ยง) -->
         <div class="form-row-group">
-          <label class="group-label">ช่วงเวลาและจังหวะยา</label>
+          <label class="group-label">ช่วงเวลาและจังหวะยา (3 มื้อหลัก)</label>
           <div class="pills-container" id="meal-pills">
             <button type="button" class="pill-btn active" data-val="morning">🌅 ก่อนมื้อเช้า (ฉีดยา)</button>
+            <button type="button" class="pill-btn" data-val="noon">☀️ ก่อนมื้อเที่ยง (ฉีดยา)</button>
             <button type="button" class="pill-btn" data-val="evening">🌇 ก่อนมื้อเย็น (ฉีดยา)</button>
-            <button type="button" class="pill-btn" data-val="post-meal">⏱️ หลังอาหาร 2h</button>
-            <button type="button" class="pill-btn" data-val="bedtime">🌙 ก่อนนอน</button>
           </div>
         </div>
 
