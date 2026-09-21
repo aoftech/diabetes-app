@@ -20,6 +20,7 @@ const closeSettingsBtn = document.getElementById('close-settings-btn');
 const saveSettingsBtn = document.getElementById('save-settings-btn');
 const clearAllDataBtn = document.getElementById('clear-all-data-btn');
 const settingMorningDoseInput = document.getElementById('setting-morning-dose');
+const settingNoonDoseInput = document.getElementById('setting-noon-dose');
 const settingEveningDoseInput = document.getElementById('setting-evening-dose');
 const settingTargetInput = document.getElementById('setting-target');
 const settingIsfInput = document.getElementById('setting-isf');
@@ -34,6 +35,10 @@ const tirTarget = document.getElementById('tir-target');
 const tirHigh = document.getElementById('tir-high');
 const tirPercent = document.getElementById('tir-percent');
 
+// การ์ดและตัวเลขน้ำตาลตกในรอบเดือน
+const hypoMonthCount = document.getElementById('hypo-month-count');
+const hypoAlertCard = document.getElementById('hypo-alert-card');
+
 const logList = document.getElementById('log-list');
 const logCounter = document.getElementById('log-counter');
 const exportCsvBtn = document.getElementById('export-csv-btn');
@@ -43,6 +48,7 @@ const exportCsvBtn = document.getElementById('export-csv-btn');
 // ==========================================
 let rxConfig = {
   morningDose: 14,
+  noonDose: 0,
   eveningDose: 8,
   targetGlucose: 110,
   isf: 40,
@@ -57,6 +63,7 @@ function loadSettings() {
     try { rxConfig = JSON.parse(savedRx); } catch (e) { console.error(e); }
   }
   settingMorningDoseInput.value = rxConfig.morningDose ?? '';
+  if (settingNoonDoseInput) settingNoonDoseInput.value = rxConfig.noonDose ?? '';
   settingEveningDoseInput.value = rxConfig.eveningDose ?? '';
   settingTargetInput.value = rxConfig.targetGlucose ?? 110;
   settingIsfInput.value = rxConfig.isf ?? 40;
@@ -65,6 +72,7 @@ function loadSettings() {
 
 function saveSettings() {
   rxConfig.morningDose = parseFloat(settingMorningDoseInput.value) || 0;
+  rxConfig.noonDose = settingNoonDoseInput ? (parseFloat(settingNoonDoseInput.value) || 0) : 0;
   rxConfig.eveningDose = parseFloat(settingEveningDoseInput.value) || 0;
   rxConfig.targetGlucose = parseFloat(settingTargetInput.value) || 110;
   rxConfig.isf = parseFloat(settingIsfInput.value) || 40;
@@ -95,7 +103,7 @@ function saveRecords() {
 }
 
 // ==========================================
-// 3. UI PILLS & RX AUTO-FILL
+// 3. UI PILLS & RX AUTO-FILL (3 มื้อหลัก)
 // ==========================================
 function setupPills() {
   const mealPills = document.querySelectorAll('#meal-pills .pill-btn');
@@ -122,8 +130,9 @@ function setupPills() {
 
 function updateRxHintForMeal(mealVal) {
   let rxDose = 0;
-  if (mealVal === 'morning') rxDose = rxConfig.morningDose;
-  else if (mealVal === 'evening') rxDose = rxConfig.eveningDose;
+  if (mealVal === 'morning') rxDose = rxConfig.morningDose || 0;
+  else if (mealVal === 'noon') rxDose = rxConfig.noonDose || 0;
+  else if (mealVal === 'evening') rxDose = rxConfig.eveningDose || 0;
 
   if (rxDose > 0) {
     rxHintLabel.textContent = `หมอสั่ง ${rxDose} U`;
@@ -168,7 +177,7 @@ function calculateExpectedDose() {
 }
 
 // ==========================================
-// 4. เกจ, TIR และ กราฟเส้น SVG TREND (จุดที่ปรับแก้)
+// 4. เกจ, TIR, สถิติน้ำตาลตกในรอบเดือน และ กราฟ SVG
 // ==========================================
 function updateGauge(glucose) {
   if (!glucose || isNaN(glucose)) {
@@ -216,12 +225,20 @@ function setGaugeRotation(angle) {
   gaugeFill.style.strokeDashoffset = offset;
 }
 
-function updateTIR() {
+function updateTIRAndHypo() {
   if (records.length === 0) {
     tirLow.style.width = '0%';
     tirTarget.style.width = '0%';
     tirHigh.style.width = '0%';
     tirPercent.textContent = '0% ในเกณฑ์';
+    if (hypoMonthCount) {
+      hypoMonthCount.textContent = '0 ครั้ง';
+      hypoMonthCount.style.color = '#16a34a';
+      if (hypoAlertCard) {
+        hypoAlertCard.style.background = '#f0fdf4';
+        hypoAlertCard.style.borderColor = '#bbf7d0';
+      }
+    }
     return;
   }
 
@@ -229,10 +246,23 @@ function updateTIR() {
   let targetCount = 0;
   let highCount = 0;
 
+  // คำนวณน้ำตาลตกในรอบ 30 วันล่าสุด
+  const now = Date.now();
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  let hypoMonth = 0;
+
   records.forEach(r => {
-    if (r.glucose < 70) lowCount++;
-    else if (r.glucose <= 140) targetCount++;
-    else highCount++;
+    if (r.glucose < 70) {
+      lowCount++;
+      const recTime = new Date(r.timestamp).getTime();
+      if (now - recTime <= thirtyDaysMs) {
+        hypoMonth++;
+      }
+    } else if (r.glucose <= 140) {
+      targetCount++;
+    } else {
+      highCount++;
+    }
   });
 
   const total = records.length;
@@ -244,9 +274,33 @@ function updateTIR() {
   tirTarget.style.width = `${targetP}%`;
   tirHigh.style.width = `${highP}%`;
   tirPercent.textContent = `${targetP}% ในเกณฑ์ (70-140)`;
+
+  // อัปเดตการ์ดน้ำตาลตกในรอบเดือน
+  if (hypoMonthCount) {
+    hypoMonthCount.textContent = `${hypoMonth} ครั้ง`;
+    if (hypoMonth === 0) {
+      hypoMonthCount.style.color = '#16a34a';
+      if (hypoAlertCard) {
+        hypoAlertCard.style.background = '#f0fdf4';
+        hypoAlertCard.style.borderColor = '#bbf7d0';
+      }
+    } else if (hypoMonth <= 2) {
+      hypoMonthCount.style.color = '#d97706';
+      if (hypoAlertCard) {
+        hypoAlertCard.style.background = '#fefce8';
+        hypoAlertCard.style.borderColor = '#fef08a';
+      }
+    } else {
+      hypoMonthCount.style.color = '#dc2626';
+      if (hypoAlertCard) {
+        hypoAlertCard.style.background = '#fef2f2';
+        hypoAlertCard.style.borderColor = '#fecaca';
+      }
+    }
+  }
 }
 
-// ฟังก์ชันวาดกราฟเส้น SVG TREND (เวอร์ชันแก้ไขสมบูรณ์ 100%)
+// วาดกราฟเส้น SVG TREND บนพื้นหลังขาว
 function renderTrendChart() {
   const svgGrid = document.getElementById('svg-grid');
   const svgArea = document.getElementById('svg-area');
@@ -266,7 +320,6 @@ function renderTrendChart() {
     return;
   }
 
-  // ดึงสูงสุด 10 รายการล่าสุด และเรียงจาก อดีต -> ปัจจุบัน (ซ้ายไปขวา)
   const recentRecords = records.slice(0, 10).reverse();
   if (trendSummary) trendSummary.textContent = `${recentRecords.length} รายการล่าสุด`;
 
@@ -278,7 +331,6 @@ function renderTrendChart() {
   const chartH = h - paddingTop - paddingBottom;
   const chartW = w - (paddingX * 2);
 
-  // คำนวณสเกลขอบเขตระดับน้ำตาลแบบยืดหยุ่น
   let minG = 50;
   let maxG = 220;
   recentRecords.forEach(r => {
@@ -292,7 +344,7 @@ function renderTrendChart() {
     return (paddingTop + chartH) - (p * chartH);
   };
 
-  // 1. วาดแถบเป้าหมายสีเขียว (Target Zone 70 - 140)
+  // แถบเป้าหมาย 70 - 140
   const y140 = getY(140);
   const y70 = getY(70);
   const zoneH = Math.max(2, Math.abs(y70 - y140));
@@ -316,10 +368,9 @@ function renderTrendChart() {
     svgGrid.appendChild(line);
   };
 
-  makeDashedLine(y140, '#16a34a'); // เส้นประขอบบน 140
-  makeDashedLine(y70, '#0284c7');  // เส้นประขอบล่าง 70
+  makeDashedLine(y140, '#16a34a');
+  makeDashedLine(y70, '#0284c7');
 
-  // 2. คำนวณพิกัดจุด (X, Y)
   const count = recentRecords.length;
   const stepX = count > 1 ? chartW / (count - 1) : 0;
   const points = recentRecords.map((r, i) => {
@@ -328,7 +379,6 @@ function renderTrendChart() {
     return { x, y, val: r.glucose };
   });
 
-  // 3. วาดเส้นกราฟและพื้นที่สีใต้กราฟ
   if (count === 1) {
     const p = points[0];
     svgLine.setAttribute('d', `M ${p.x - 30} ${p.y} L ${p.x + 30} ${p.y}`);
@@ -342,11 +392,10 @@ function renderTrendChart() {
     svgArea.setAttribute('d', `${lineD} L ${points[points.length - 1].x} ${h} L ${points[0].x} ${h} Z`);
   }
 
-  // 4. วาดจุดกลมและตัวเลขค่าน้ำตาล
   points.forEach((p) => {
-    let dotColor = '#16a34a'; // ปกติสีเขียว
-    if (p.val < 70) dotColor = '#0284c7'; // ต่ำสีฟ้า
-    else if (p.val > 140) dotColor = '#dc2626'; // สูงสีแดง
+    let dotColor = '#16a34a';
+    if (p.val < 70) dotColor = '#0284c7';
+    else if (p.val > 140) dotColor = '#dc2626';
 
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     circle.setAttribute('cx', p.x);
@@ -375,7 +424,7 @@ function renderTimeline() {
   logCounter.textContent = `${records.length} รายการ`;
 
   if (records.length === 0) {
-    logList.innerHTML = `<div style="text-align:center; padding: 24px; color: var(--text-muted); font-size: 0.9rem;">ยังไม่มีบันทึกข้อมูล ลองเริ่มบันทึกครั้งแรกด้านบนได้เลยครับ</div>`;
+    logList.innerHTML = `<div style="text-align:center; padding: 24px; color: var(--text-muted); font-size: 0.9rem;">ยังไม่มีบันทึกข้อมูล</div>`;
     return;
   }
 
@@ -392,9 +441,8 @@ function renderTimeline() {
 
     let mealLabel = 'มื้อทั่วไป';
     if (rec.mealTime === 'morning') mealLabel = '🌅 ก่อนมื้อเช้า';
+    else if (rec.mealTime === 'noon') mealLabel = '☀️ ก่อนมื้อเที่ยง';
     else if (rec.mealTime === 'evening') mealLabel = '🌇 ก่อนมื้อเย็น';
-    else if (rec.mealTime === 'post-meal') mealLabel = '⏱️ หลังอาหาร 2h';
-    else if (rec.mealTime === 'bedtime') mealLabel = '🌙 ก่อนนอน';
 
     let rxDiffChip = '';
     if (rec.prescribedInsulin > 0) {
@@ -435,7 +483,7 @@ function renderTimeline() {
 
 function renderAll() {
   renderTimeline();
-  updateTIR();
+  updateTIRAndHypo();
   renderTrendChart();
   if (records.length > 0) {
     updateGauge(records[0].glucose);
@@ -461,6 +509,7 @@ form.addEventListener('submit', (e) => {
 
   let prescribedInsulin = 0;
   if (mealTime === 'morning') prescribedInsulin = rxConfig.morningDose || 0;
+  else if (mealTime === 'noon') prescribedInsulin = rxConfig.noonDose || 0;
   else if (mealTime === 'evening') prescribedInsulin = rxConfig.eveningDose || 0;
 
   const editIdx = parseInt(editIndexInput.value);
@@ -549,7 +598,7 @@ glucoseInput.addEventListener('input', () => {
 
 carbsInput.addEventListener('input', calculateExpectedDose);
 
-// Export CSV 9 Columns พร้อม BOM
+// Export CSV 9 คอลัมน์ (รองรับ 3 มื้อหลัก)
 exportCsvBtn.addEventListener('click', () => {
   if (records.length === 0) {
     alert('ยังไม่มีข้อมูลสำหรับส่งออก');
@@ -569,9 +618,8 @@ exportCsvBtn.addEventListener('click', () => {
 
     let mealLabel = 'มื้อทั่วไป';
     if (r.mealTime === 'morning') mealLabel = 'ก่อนมื้อเช้า';
+    else if (r.mealTime === 'noon') mealLabel = 'ก่อนมื้อเที่ยง';
     else if (r.mealTime === 'evening') mealLabel = 'ก่อนมื้อเย็น';
-    else if (r.mealTime === 'post-meal') mealLabel = 'หลังอาหาร 2h';
-    else if (r.mealTime === 'bedtime') mealLabel = 'ก่อนนอน';
 
     let diffText = 'ไม่มีคำสั่ง';
     if (r.prescribedInsulin > 0) {
